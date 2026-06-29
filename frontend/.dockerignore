@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+.vscode
+.idea
+
+node_modules/
+.angular/
+dist/
+.nx/
+npm-debug.log*
+
+.env
+.env.local
+src/environments/environment.local.ts

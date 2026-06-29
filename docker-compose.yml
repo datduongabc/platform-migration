@@ -1,0 +1,35 @@
+services:
+  ### BACKEND ###
+  backend:
+    build:
+      context: ./backend
+      target: development
+    container_name: fastapi_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env.local
+    networks:
+      - app_network
+
+  ### FRONTEND ###
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    container_name: angular_frontend
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app # BIND MOUNT
+      - /app/node_modules # ANONYMOUS VOLUME
+    networks:
+      - app_network
+    depends_on:
+      - backend
+
+networks:
+  app_network:
+    driver: bridge
