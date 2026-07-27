@@ -15,6 +15,12 @@ class UserRepository:
         return result.scalars().first()
 
     @staticmethod
+    async def get_by_email(db: AsyncSession, email: str) -> User | None:
+        query = select(User).where(User.email == email)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
     async def get_by_id_with_profile(
         db: AsyncSession, user_id: UUID | str
     ) -> User | None:
@@ -23,15 +29,22 @@ class UserRepository:
         return result.scalars().first()
 
     @staticmethod
-    async def get_by_email(db: AsyncSession, email: str) -> User | None:
-        query = select(User).where(User.email == email)
+    async def get_by_email_with_profile(db: AsyncSession, email: str) -> User | None:
+        query = (
+            select(User).options(joinedload(User.profile)).where(User.email == email)
+        )
         result = await db.execute(query)
         return result.scalars().first()
 
     @staticmethod
-    async def get_by_email_with_profile(db: AsyncSession, email: str) -> User | None:
+    async def get_by_username_with_profile(
+        db: AsyncSession, username: str
+    ) -> User | None:
         query = (
-            select(User).options(joinedload(User.profile)).where(User.email == email)
+            select(User)
+            .options(joinedload(User.profile))
+            .join(Profile)
+            .where(Profile.username == username)
         )
         result = await db.execute(query)
         return result.scalars().first()

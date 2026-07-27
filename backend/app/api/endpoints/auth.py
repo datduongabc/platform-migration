@@ -3,12 +3,21 @@ import uuid
 
 from app.core.database import get_db
 from app.core.limiter import limiter
-from app.core.security import (create_access_token, create_refresh_token,
-                               decode_token, get_password_hash,
-                               verify_password)
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_password_hash,
+    verify_password,
+)
 from app.repositories.user import ProfileRepository, UserRepository
-from app.schemas.codegen import (LoginRequest, RefreshTokenRequest,
-                                 RegisterRequest, Token, TokenRefreshResponse)
+from app.schemas.codegen import (
+    LoginRequest,
+    RefreshTokenRequest,
+    RegisterRequest,
+    Token,
+    TokenRefreshResponse,
+)
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,9 +27,7 @@ router = APIRouter()
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-async def register(
-    request: Request, payload: RegisterRequest, db: AsyncSession = Depends(get_db)
-):
+async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # Normalize and validate email
     try:
         email = validate_email(payload.email, check_deliverability=False).normalized
@@ -30,26 +37,33 @@ async def register(
             detail=f"Invalid email address: {str(e)}",
         )
 
-    # Check if email already exists
-    if await UserRepository.get_by_email(db, email):
+    # Check if email or username already exists in parallel reduces database round-trips
+    existing_user, existing_profile = await asyncio.gather(
+        UserRepository.get_by_email(db, email),
+        ProfileRepository.get_by_username(db, payload.username),
+    )
+
+    if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already exists. Please choose another.",
         )
 
-    # Check if username already exists
-    if await ProfileRepository.get_by_username(db, payload.username):
+    if existing_profile:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Username already exists. Please choose another.",
         )
 
-    # Insert user by hashed password
+    # Hash password in worker thread to prevent blocking event loop
+    hashed_password = await asyncio.to_thread(get_password_hash, payload.password)
+
+    # Insert user
     new_user = await UserRepository.create(
         db,
         uuid.uuid4(),
         email,
-        get_password_hash(payload.password),
+        hashed_password,
     )
 
     # Insert profile
@@ -61,54 +75,39 @@ async def register(
     return {"status": "ok", "message": "Account created successfully."}
 
 
-"""
-    Giải thích: Workflow nếu mà profile không tìm thấy return sớm, ngược lại đi so sánh match password.
-    Có thể ảnh hưởng tới security vì nếu hacker đo response timer của api thì có thể biết được là đang ở step nào
-"""
+# Dummy hash for constant-time password comparison when user is not found
+# Prevent user enumeration
+DUMMY_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW"
 
 
 @router.post("/login", response_model=Token)
 @limiter.limit("10/minute")
-async def login(
-    request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)
-):
+async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     generic_error = (
         "Invalid credentials. Please check your email or username and password."
     )
 
     identifier = payload.identifier
 
-    # Resolve identifier to user
-    user = None
-
     if "@" in identifier:
         user = await UserRepository.get_by_email_with_profile(db, identifier)
     else:
-        profile = await ProfileRepository.get_by_username(db, identifier)
+        user = await UserRepository.get_by_username_with_profile(db, identifier)
 
-        if not profile:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail=generic_error
-            )
+    # Always execute verify_password even if user is missing
+    target_hash = user.encrypted_password if user and user.profile else DUMMY_HASH
 
-        user = await UserRepository.get_by_id_with_profile(db, profile.id)
+    # This action is offloaded to a thread to avoid blocking the event loop
+    is_password_match = await asyncio.to_thread(
+        verify_password, payload.password, target_hash
+    )
 
-    if not user or not user.profile:
+    if not user or not user.profile or not is_password_match:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=generic_error
         )
 
     user_profile = user.profile
-
-    # Verify password
-    is_password_match = await asyncio.to_thread(
-        verify_password, payload.password, user.encrypted_password
-    )
-
-    if not is_password_match:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=generic_error
-        )
 
     # Create access and refresh tokens
     access_token = create_access_token(subject=user.id)
@@ -138,6 +137,7 @@ async def refresh_token(
         )
 
     user_id = decoded.get("sub")
+
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -151,8 +151,6 @@ async def refresh_token(
             detail="User not found",
         )
 
-    user_profile = user.profile
-
     # Create new access and refresh tokens
     new_access_token = create_access_token(subject=user.id)
     new_refresh_token = create_refresh_token(subject=user.id)
@@ -165,5 +163,5 @@ async def refresh_token(
 
 
 @router.post("/logout")
-async def logout(request: Request):
+async def logout():
     return {"status": "ok", "message": "Logged out successfully."}

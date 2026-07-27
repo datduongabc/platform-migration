@@ -3,8 +3,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.api.deps import get_db
-from app.core.security import (create_access_token, create_refresh_token,
-                               decode_token, get_password_hash)
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_password_hash,
+)
 from app.main import app
 from fastapi.testclient import TestClient
 

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { LoginRequest } from '../../api/models';
@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [RouterLink, FormsModule],
   templateUrl: './login.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {
   private readonly authService = inject(AuthService);
