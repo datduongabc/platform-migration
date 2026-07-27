@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { ProjectResponse } from '../../api/models';
 import { ProjectsByUserService } from '../../api/services/projects-by-user.service';
 import { AuthService } from '../../services/auth.service';
 
@@ -11,43 +11,40 @@ import { AuthService } from '../../services/auth.service';
   imports: [CommonModule, RouterLink],
   templateUrl: './meetings.html',
 })
-export class MeetingsComponent implements OnInit {
+export class MeetingsComponent {
   protected readonly authService = inject(AuthService);
   private readonly projectService = inject(ProjectsByUserService);
   private readonly router = inject(Router);
 
-  projects = signal<ProjectResponse[]>([]);
-  loading = signal(false);
-  error = signal<string | null>(null);
-
+  // Pagination signals
   skip = signal(0);
   limit = signal(10);
 
+  // Computed parameters for request
+  requestParams = computed(() => ({
+    skip: this.skip(),
+    limit: this.limit(),
+  }));
+
+  // Resource for managing asynchronous data fetching
+  meetingsResource = rxResource({
+    params: () => this.requestParams(),
+    stream: ({ params }) => this.projectService.listUserProjectsProjectsGet(params),
+  });
+
+  // Derived signals to match legacy variables bound to template
+  projects = computed(() => this.meetingsResource.value() || []);
+  loading = computed(() => this.meetingsResource.isLoading());
+  error = computed(() => {
+    const err: any = this.meetingsResource.error();
+    if (!err) return null;
+    return err.error?.detail || 'Failed to load meetings.';
+  });
+
   currentPage = computed(() => Math.floor(this.skip() / this.limit()) + 1);
 
-  ngOnInit(): void {
-    this.loadProjects();
-  }
-
   loadProjects(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.projectService
-      .listUserProjectsProjectsGet({
-        skip: this.skip(),
-        limit: this.limit(),
-      })
-      .subscribe({
-        next: (data) => {
-          this.projects.set(data);
-          this.loading.set(false);
-        },
-        error: (err) => {
-          this.loading.set(false);
-          this.error.set(err.error?.detail || 'Failed to load meetings.');
-        },
-      });
+    this.meetingsResource.reload();
   }
 
   formatDuration(seconds: number | null | undefined): string {
@@ -60,13 +57,11 @@ export class MeetingsComponent implements OnInit {
   prevPage(): void {
     if (this.skip() > 0) {
       this.skip.update((s) => Math.max(0, s - this.limit()));
-      this.loadProjects();
     }
   }
 
   nextPage(): void {
     this.skip.update((s) => s + this.limit());
-    this.loadProjects();
   }
 
   handleLogout(): void {
