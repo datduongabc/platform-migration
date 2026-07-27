@@ -44,7 +44,8 @@ class UserRepository:
         role: str | None = None,
         search: str | None = None,
     ) -> list[User]:
-        query = select(User)
+        query = select(User).options(joinedload(User.profile))
+
         if role or search:
             query = query.join(Profile)
         if role:
@@ -60,7 +61,7 @@ class UserRepository:
             )
         query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
         result = await db.execute(query)
-        return list(result.scalars().all())
+        return list(result.scalars().unique().all())
 
     @staticmethod
     async def create(
