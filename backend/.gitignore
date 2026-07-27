@@ -29,7 +29,7 @@ ENV/
 env/
 .env
 .env.*
-!env.example
+!.env.example
 .vscode/
 .idea/
 .history/
