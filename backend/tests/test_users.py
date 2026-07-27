@@ -2,11 +2,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
 from app.api.deps import get_current_admin, get_current_user, get_db
 from app.main import app
 from fastapi import HTTPException
-
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 mock_db = MagicMock()

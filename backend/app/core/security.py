@@ -2,9 +2,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Union
 
 import jwt
-from bcrypt import checkpw, gensalt, hashpw
-
 from app.core.config import settings
+from bcrypt import checkpw, gensalt, hashpw
 
 
 def get_password_hash(password: str) -> str:

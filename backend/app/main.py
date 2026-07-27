@@ -3,16 +3,15 @@ import ssl
 import urllib.error
 import urllib.request
 
+from app.api.endpoints import auth, projects, users
+from app.core.config import settings
+from app.core.database import async_session_factory
+from app.core.limiter import limiter
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
-
-from app.api.endpoints import auth, projects, users
-from app.core.config import settings
-from app.core.database import async_session_factory
-from app.core.limiter import limiter
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

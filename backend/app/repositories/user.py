@@ -1,10 +1,10 @@
 from uuid import UUID
 
 from app.models.user import Profile, User
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
 
 
 class UserRepository:

@@ -1,12 +1,11 @@
+from app.core.database import get_db
+from app.core.security import decode_token
+from app.models.user import Profile, User
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
-
-from app.core.database import get_db
-from app.core.security import decode_token
-from app.models.user import Profile, User
 
 security = HTTPBearer()
 
