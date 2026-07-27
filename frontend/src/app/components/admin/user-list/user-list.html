@@ -1,0 +1,229 @@
+<div class="min-h-screen bg-b-bg p-6 relative overflow-hidden font-sans">
+  <!-- Decorative background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-35"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-25"
+    style="background: radial-gradient(circle, rgb(var(--t-primary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="max-w-6xl mx-auto z-10 relative">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <div class="flex items-center gap-4">
+        <img src="/short-logo.png" alt="Ricotdin" style="height: 40px; width: auto" />
+        <div>
+          <h1 class="text-3xl font-serif font-bold text-b-fg">User Management</h1>
+          <p class="text-sm text-b-fg/60">Admin panel to review accounts and roles</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <a routerLink="/meetings" class="btn-primary flex items-center justify-center gap-2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          Meetings Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div
+      class="bg-white rounded-3xl border border-b-border p-6 shadow-b-md mb-6 flex flex-col md:flex-row gap-4 justify-between items-center"
+    >
+      <div class="w-full md:w-80 relative">
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          (input)="onSearch()"
+          placeholder="Search by username or email..."
+          class="input-botanical w-full pl-10"
+        />
+        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-b-fg/40">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </span>
+      </div>
+
+      <div class="flex flex-wrap gap-4 w-full md:w-auto justify-end">
+        <!-- Role Filter -->
+        <div class="flex bg-b-clay/40 p-1 rounded-2xl border border-b-border">
+          <button
+            (click)="setRoleFilter('all')"
+            class="px-4 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all"
+            [class.bg-white]="roleFilter() === 'all'"
+            [class.shadow-b-sm]="roleFilter() === 'all'"
+            [class.text-b-fg]="roleFilter() === 'all'"
+            [class.text-b-fg/60]="roleFilter() !== 'all'"
+          >
+            All
+          </button>
+          <button
+            (click)="setRoleFilter('admin')"
+            class="px-4 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all"
+            [class.bg-white]="roleFilter() === 'admin'"
+            [class.shadow-b-sm]="roleFilter() === 'admin'"
+            [class.text-b-fg]="roleFilter() === 'admin'"
+            [class.text-b-fg/60]="roleFilter() !== 'admin'"
+          >
+            Admins
+          </button>
+          <button
+            (click)="setRoleFilter('user')"
+            class="px-4 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all"
+            [class.bg-white]="roleFilter() === 'user'"
+            [class.shadow-b-sm]="roleFilter() === 'user'"
+            [class.text-b-fg]="roleFilter() === 'user'"
+            [class.text-b-fg/60]="roleFilter() !== 'user'"
+          >
+            Users
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white rounded-3xl border border-b-border shadow-b-xl overflow-hidden">
+      @if (loading()) {
+        <div class="p-12 text-center text-b-fg/50 flex flex-col items-center gap-3">
+          <div
+            class="animate-spin rounded-full h-8 w-8 border-2 border-b-terra border-t-transparent"
+          ></div>
+          <span>Loading users...</span>
+        </div>
+      } @else if (error()) {
+        <div class="p-12 text-center">
+          <p
+            class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-2xl px-6 py-4 inline-block"
+          >
+            {{ error() }}
+          </p>
+        </div>
+      } @else if (users().length === 0) {
+        <div class="p-12 text-center text-b-fg/50">
+          <svg
+            class="mx-auto mb-4 text-b-fg/30"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <p class="font-medium text-lg">No users found</p>
+          <p class="text-sm">Try adjusting your filters or search query.</p>
+        </div>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr
+                class="bg-b-clay/35 border-b border-b-border text-b-fg/70 uppercase tracking-widest text-[10px] font-bold"
+              >
+                <th class="py-4 px-6">User</th>
+                <th class="py-4 px-6">Role</th>
+                <th class="py-4 px-6">Created At</th>
+                <th class="py-4 px-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-b-border/60">
+              <tr *ngFor="let u of users()" class="hover:bg-b-clay/10 transition-colors">
+                <td class="py-4 px-6">
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="h-10 w-10 rounded-full bg-b-clay flex items-center justify-center font-bold text-b-fg uppercase border border-b-border/80"
+                    >
+                      {{ (u.profile?.username || 'U')[0] }}
+                    </div>
+                    <div>
+                      <div class="font-semibold text-b-fg font-serif text-base">
+                        {{ u.profile?.display_name || u.profile?.username || 'No Username' }}
+                      </div>
+                      <div class="text-xs text-b-fg/60">{{ u.email }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-4 px-6">
+                  <span
+                    class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border"
+                    [class.bg-green-50]="u.profile?.role === 'admin'"
+                    [class.text-green-700]="u.profile?.role === 'admin'"
+                    [class.border-green-200]="u.profile?.role === 'admin'"
+                    [class.bg-blue-50]="u.profile?.role !== 'admin'"
+                    [class.text-blue-700]="u.profile?.role !== 'admin'"
+                    [class.border-blue-200]="u.profile?.role !== 'admin'"
+                  >
+                    {{ u.profile?.role || 'user' }}
+                  </span>
+                </td>
+                <td class="py-4 px-6 text-sm text-b-fg/70">
+                  {{ u.created_at | date: 'mediumDate' }}
+                </td>
+                <td class="py-4 px-6 text-right">
+                  <a
+                    [routerLink]="['/admin/users', u.id]"
+                    class="inline-flex items-center justify-center px-4 py-2 bg-b-clay hover:bg-b-border/50 text-b-fg text-xs font-bold rounded-2xl transition-all border border-b-border/60"
+                  >
+                    View Details
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div
+          class="bg-b-clay/20 px-6 py-4 border-t border-b-border flex items-center justify-between"
+        >
+          <span class="text-xs text-b-fg/60"> Showing page {{ currentPage() }} </span>
+          <div class="flex gap-2">
+            <button
+              (click)="prevPage()"
+              [disabled]="skip() === 0"
+              class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg transition-all hover:bg-b-clay/20 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              (click)="nextPage()"
+              [disabled]="users().length < limit()"
+              class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg transition-all hover:bg-b-clay/20 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

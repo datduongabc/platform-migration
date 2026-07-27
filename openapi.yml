@@ -1,0 +1,529 @@
+openapi: 3.1.0
+info:
+  title: Platform Migration API
+  version: 0.1.0
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register
+      operationId: register_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      operationId: login_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh Token
+      operationId: refresh_token_auth_refresh_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenRefreshResponse"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout
+      operationId: logout_auth_logout_post
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutResponse"
+  /admin/users:
+    get:
+      tags:
+        - User Management
+      summary: List Users
+      operationId: list_users_admin_users_get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            title: Skip
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 10
+            title: Limit
+        - name: role
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Role
+        - name: search
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Search
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserResponse"
+                title: Response List Users Admin Users Get
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /admin/users/{id}:
+    get:
+      tags:
+        - User Management
+      summary: Get User Detail
+      operationId: get_user_detail_admin_users__id__get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Id
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /projects:
+    get:
+      tags:
+        - Projects by User
+      summary: List User Projects
+      operationId: list_user_projects_projects_get
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            title: Skip
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Limit
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectResponse"
+                title: Response List User Projects Projects Get
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /:
+    get:
+      summary: Read Root
+      operationId: read_root__get
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /health:
+    get:
+      summary: Health Check
+      operationId: health_check_health_get
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /gemini:
+    get:
+      summary: Gemini Check
+      operationId: gemini_check_gemini_get
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /speechmatics:
+    get:
+      summary: Speechmatics Check
+      operationId: speechmatics_check_speechmatics_get
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: "#/components/schemas/ValidationError"
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    RegisterResponse:
+      properties:
+        status:
+          type: string
+          title: Status
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+        - status
+        - message
+      title: RegisterResponse
+    LogoutResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+        - message
+      title: LogoutResponse
+    LoginRequest:
+      properties:
+        identifier:
+          type: string
+          title: Identifier
+          description: Email or Username
+        password:
+          type: string
+          minLength: 8
+          title: Password
+      type: object
+      required:
+        - identifier
+        - password
+      title: LoginRequest
+    ProfileResponse:
+      properties:
+        username:
+          type: string
+          title: Username
+        display_name:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Display Name
+        avatar_key:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Avatar Key
+        theme_preference:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Theme Preference
+          default: default
+        id:
+          type: string
+          format: uuid
+          title: Id
+        role:
+          type: string
+          title: Role
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+        - username
+        - id
+        - role
+        - created_at
+      title: ProfileResponse
+    ProjectResponse:
+      properties:
+        title:
+          type: string
+          title: Title
+        status:
+          type: string
+          title: Status
+          default: pending
+        duration_seconds:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Duration Seconds
+        started_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Started At
+        id:
+          type: string
+          format: uuid
+          title: Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+        - title
+        - id
+        - user_id
+        - created_at
+        - updated_at
+      title: ProjectResponse
+    RefreshTokenRequest:
+      properties:
+        refresh_token:
+          type: string
+          title: Refresh Token
+      type: object
+      required:
+        - refresh_token
+      title: RefreshTokenRequest
+    RegisterRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        username:
+          type: string
+          maxLength: 30
+          minLength: 3
+          pattern: ^[a-z0-9_-]+$
+          title: Username
+        password:
+          type: string
+          minLength: 8
+          title: Password
+      type: object
+      required:
+        - email
+        - username
+        - password
+      title: RegisterRequest
+    Token:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        refresh_token:
+          type: string
+          title: Refresh Token
+        token_type:
+          type: string
+          title: Token Type
+          default: bearer
+        user_id:
+          type: string
+          title: User Id
+        email:
+          type: string
+          format: email
+          title: Email
+        username:
+          type: string
+          title: Username
+        role:
+          type: string
+          title: Role
+      type: object
+      required:
+        - access_token
+        - refresh_token
+        - user_id
+        - email
+        - username
+        - role
+      title: Token
+    TokenRefreshResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        refresh_token:
+          type: string
+          title: Refresh Token
+        token_type:
+          type: string
+          title: Token Type
+          default: bearer
+      type: object
+      required:
+        - access_token
+        - refresh_token
+      title: TokenRefreshResponse
+    UserResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          format: email
+          title: Email
+        profile:
+          anyOf:
+            - $ref: "#/components/schemas/ProfileResponse"
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+        - id
+        - email
+        - created_at
+      title: UserResponse
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer

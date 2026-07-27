@@ -1,0 +1,203 @@
+<div class="min-h-screen bg-b-bg p-6 relative overflow-hidden font-sans">
+  <!-- Decorative background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-35"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-25"
+    style="background: radial-gradient(circle, rgb(var(--t-primary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="max-w-6xl mx-auto z-10 relative">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <div class="flex items-center gap-4">
+        <img src="/short-logo.png" alt="Ricotdin" style="height: 40px; width: auto" />
+        <div>
+          <h1 class="text-3xl font-serif font-bold text-b-fg">Meetings Dashboard</h1>
+          <p class="text-sm text-b-fg/60">Review your recorded meetings and audio processing</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        @if (authService.currentUser()?.role === 'admin') {
+          <a routerLink="/admin/users" class="btn-primary flex items-center justify-center gap-2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            Admin Panel
+          </a>
+        }
+        <button
+          (click)="handleLogout()"
+          class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg hover:bg-b-clay/20 transition-all"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- User Profile Card -->
+      <div class="bg-white rounded-3xl border border-b-border p-6 shadow-b-md h-fit">
+        <h3 class="text-xs uppercase font-bold tracking-wider text-b-fg/50 font-sans mb-4">
+          User Details
+        </h3>
+        @if (authService.currentUser(); as user) {
+          <div class="flex items-center gap-3 mb-4">
+            <div
+              class="h-12 w-12 rounded-full bg-b-clay flex items-center justify-center font-bold text-b-fg uppercase border border-b-border"
+            >
+              {{ user.username[0] }}
+            </div>
+            <div>
+              <div class="font-semibold text-b-fg font-serif text-lg">{{ user.username }}</div>
+              <div class="text-xs text-b-fg/60">{{ user.email }}</div>
+            </div>
+          </div>
+          <div
+            class="flex items-center justify-between text-xs border-t border-b-border/40 pt-3 text-b-fg/70"
+          >
+            <span>Role</span>
+            <span class="font-bold uppercase tracking-wider">{{ user.role }}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Meetings List Table -->
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-3xl border border-b-border shadow-b-xl overflow-hidden">
+          <div class="px-6 py-5 border-b border-b-border flex items-center justify-between">
+            <h2 class="font-serif text-xl font-bold text-b-fg">Your Meetings</h2>
+            <button
+              (click)="loadProjects()"
+              [disabled]="loading()"
+              class="text-xs text-b-terra font-semibold hover:underline"
+            >
+              Refresh
+            </button>
+          </div>
+
+          @if (loading()) {
+            <div class="p-12 text-center text-b-fg/50 flex flex-col items-center gap-3">
+              <div
+                class="animate-spin rounded-full h-8 w-8 border-2 border-b-terra border-t-transparent"
+              ></div>
+              <span>Loading meetings...</span>
+            </div>
+          } @else if (error()) {
+            <div class="p-12 text-center">
+              <p
+                class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-2xl px-6 py-4 inline-block"
+              >
+                {{ error() }}
+              </p>
+            </div>
+          } @else if (projects().length === 0) {
+            <div class="p-12 text-center text-b-fg/50 flex flex-col items-center gap-3">
+              <svg
+                class="text-b-fg/30"
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p class="font-medium text-lg">No meetings found</p>
+              <p class="text-sm">You haven't recorded any meetings yet.</p>
+            </div>
+          } @else {
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr
+                    class="bg-b-clay/35 border-b border-b-border text-b-fg/70 uppercase tracking-widest text-[10px] font-bold"
+                  >
+                    <th class="py-4 px-6">Title</th>
+                    <th class="py-4 px-6">Duration</th>
+                    <th class="py-4 px-6">Status</th>
+                    <th class="py-4 px-6">Created At</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-b-border/60">
+                  <tr *ngFor="let p of projects()" class="hover:bg-b-clay/10 transition-colors">
+                    <td class="py-4 px-6 font-semibold text-b-fg font-serif text-base">
+                      {{ p.title || 'Untitled Meeting' }}
+                    </td>
+                    <td class="py-4 px-6 text-sm text-b-fg/70 font-mono">
+                      {{ formatDuration(p.duration_seconds) }}
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border"
+                        [class.bg-green-50]="p.status === 'done'"
+                        [class.text-green-700]="p.status === 'done'"
+                        [class.border-green-200]="p.status === 'done'"
+                        [class.bg-blue-50]="p.status === 'processing'"
+                        [class.text-blue-700]="p.status === 'processing'"
+                        [class.border-blue-200]="p.status === 'processing'"
+                        [class.bg-yellow-50]="p.status === 'pending'"
+                        [class.text-yellow-700]="p.status === 'pending'"
+                        [class.border-yellow-200]="p.status === 'pending'"
+                        [class.bg-red-50]="p.status === 'failed'"
+                        [class.text-red-700]="p.status === 'failed'"
+                        [class.border-red-200]="p.status === 'failed'"
+                      >
+                        {{ p.status || 'pending' }}
+                      </span>
+                    </td>
+                    <td class="py-4 px-6 text-sm text-b-fg/70">
+                      {{ p.created_at | date: 'mediumDate' }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <div
+              class="bg-b-clay/20 px-6 py-4 border-t border-b-border flex items-center justify-between"
+            >
+              <span class="text-xs text-b-fg/60"> Showing page {{ currentPage() }} </span>
+              <div class="flex gap-2">
+                <button
+                  (click)="prevPage()"
+                  [disabled]="skip() === 0"
+                  class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg transition-all hover:bg-b-clay/20 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  (click)="nextPage()"
+                  [disabled]="projects().length < limit()"
+                  class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg transition-all hover:bg-b-clay/20 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

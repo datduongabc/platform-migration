@@ -1,0 +1,122 @@
+<div class="min-h-screen bg-b-bg flex items-center justify-center p-4 relative overflow-hidden">
+  <!-- Decorative background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-30"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-20"
+    style="background: radial-gradient(circle, rgb(var(--t-primary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="w-full max-w-sm z-10">
+    <!-- Card -->
+    <div class="bg-white rounded-3xl border border-b-border shadow-b-xl p-8 relative">
+      <!-- Wordmark -->
+      <div class="mb-6 text-center flex justify-center">
+        <img src="/long-logo.png" alt="Ricotdin" style="height: 50px; width: auto" />
+      </div>
+
+      <p class="text-center font-serif text-xl font-semibold text-b-fg mb-6">Welcome back</p>
+
+      <form (ngSubmit)="handleSubmit()" #loginForm="ngForm" novalidate class="flex flex-col gap-4">
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs font-semibold uppercase tracking-widest text-b-fg/70 font-sans">
+            Email or username
+          </span>
+          <input
+            type="text"
+            name="identifier"
+            [(ngModel)]="identifier"
+            required
+            autocomplete="username"
+            autofocus
+            class="input-botanical"
+            placeholder="you@example.com or username"
+          />
+        </label>
+
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs font-semibold uppercase tracking-widest text-b-fg/70 font-sans">
+            Password
+          </span>
+          <div class="relative">
+            <input
+              [type]="showPassword() ? 'text' : 'password'"
+              name="password"
+              [(ngModel)]="password"
+              required
+              autocomplete="current-password"
+              class="input-botanical w-full pr-10"
+              placeholder="At least 8 characters"
+            />
+            <button
+              type="button"
+              tabindex="-1"
+              (click)="togglePasswordVisibility()"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-b-fg/35 hover:text-b-fg/60 transition-colors duration-150"
+              [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+            >
+              @if (showPassword()) {
+                <svg
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              } @else {
+                <svg
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
+                  />
+                  <path
+                    d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"
+                  />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              }
+            </button>
+          </div>
+        </label>
+
+        @if (error()) {
+          <p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-2.5">
+            {{ error() }}
+          </p>
+        }
+
+        <button
+          type="submit"
+          [disabled]="loading()"
+          class="btn-primary mt-1 w-full"
+          [style.opacity]="loading() ? 0.65 : 1"
+        >
+          {{ loading() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+
+      <p class="text-center text-sm text-b-fg/50 mt-5 font-sans">
+        Don't have an account?
+        <a routerLink="/register" class="text-b-terra font-medium hover:underline"> Create one </a>
+      </p>
+    </div>
+  </div>
+</div>
