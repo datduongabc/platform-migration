@@ -220,6 +220,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HTTPValidationError"
+  /quota/movement:
+    post:
+      tags:
+        - Quota Management
+      summary: Move Quota
+      operationId: move_quota_quota_movement_post
+      security:
+        - HTTPBearer: []
+      responses:
+        "200":
+          description: Successful Response
+  /admin/pipeline/reconcile-quota:
+    post:
+      tags:
+        - Quota Management
+      summary: Reconcile Quota
+      operationId: reconcile_quota_admin_pipeline_reconcile_quota_post
+      security:
+        - HTTPBearer: []
+      responses:
+        "200":
+          description: Successful Response
+  /meetings/{id}/ask:
+    post:
+      tags:
+        - RAG & Meeting Q&A
+      summary: Ask Meeting Question
+      operationId: ask_meeting_question_meetings__id__ask_post
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Id
+      responses:
+        "200":
+          description: Successful Response
   /:
     get:
       summary: Read Root

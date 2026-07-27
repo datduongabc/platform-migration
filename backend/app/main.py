@@ -2,21 +2,33 @@ import asyncio
 import ssl
 import urllib.error
 import urllib.request
+from contextlib import asynccontextmanager
 
-from app.api.endpoints import auth, projects, users
+from app.api.endpoints import auth, projects, quota, rag, users
 from app.core.config import settings
 from app.core.database import async_session_factory
 from app.core.limiter import limiter
+from app.services.jobs import run_worker_loop
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start background job worker loop
+    worker_task = asyncio.create_task(run_worker_loop())
+    yield
+    worker_task.cancel()
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
+    lifespan=lifespan,
 )
 
 # Set up rate limiter
@@ -43,6 +55,8 @@ app.include_router(users.router, prefix=settings.API_V1_STR, tags=["User Managem
 app.include_router(
     projects.router, prefix=settings.API_V1_STR, tags=["Projects by User"]
 )
+app.include_router(quota.router, prefix=settings.API_V1_STR, tags=["Quota Management"])
+app.include_router(rag.router, prefix=settings.API_V1_STR, tags=["RAG & Meeting Q&A"])
 
 
 @app.get("/")
