@@ -1,5 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -12,6 +20,7 @@ import { UserManagementService } from '../../../api/services/user-management.ser
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './user-list.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserListComponent implements OnInit, OnDestroy {
   private readonly userService = inject(UserManagementService);

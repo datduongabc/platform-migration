@@ -3,6 +3,10 @@ services:
     image: postgres:16-alpine
     container_name: platform-migration-db
     restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: postgres
     env_file:
       - ./backend/.env
     ports:

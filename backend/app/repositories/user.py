@@ -4,7 +4,7 @@ from app.models.user import Profile, User
 from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload
 
 
 class UserRepository:
@@ -57,12 +57,14 @@ class UserRepository:
         role: str | None = None,
         search: str | None = None,
     ) -> list[User]:
-        query = select(User).options(joinedload(User.profile))
-
         if role or search:
-            query = query.join(Profile)
+            query = select(User).join(User.profile).options(contains_eager(User.profile))
+        else:
+            query = select(User).options(joinedload(User.profile))
+
         if role:
             query = query.where(Profile.role == role)
+
         if search:
             search_filter = f"%{search}%"
             query = query.where(

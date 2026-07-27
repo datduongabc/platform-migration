@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { UserResponse } from '../../../api/models';
+import { of } from 'rxjs';
 import { UserManagementService } from '../../../api/services/user-management.service';
 
 @Component({
@@ -9,37 +10,32 @@ import { UserManagementService } from '../../../api/services/user-management.ser
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './user-detail.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UserDetailComponent implements OnInit {
+export class UserDetailComponent {
   private readonly userService = inject(UserManagementService);
   private readonly route = inject(ActivatedRoute);
 
-  user = signal<UserResponse | null>(null);
-  loading = signal(false);
-  error = signal<string | null>(null);
+  // Convert route paramMap observable to a reactive signal
+  private readonly paramMap = toSignal(this.route.paramMap);
 
-  ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.loadUserDetail(id);
-    } else {
-      this.error.set('No user ID found in route.');
-    }
-  }
+  // rxResource uses params and stream options for RxJS Observable services
+  userDetailResource = rxResource({
+    params: () => this.paramMap()?.get('id'),
+    stream: ({ params: id }) => {
+      if (!id) {
+        return of(null);
+      }
+      return this.userService.getUserDetailAdminUsersIdGet({ id });
+    },
+  });
 
-  loadUserDetail(id: string): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.userService.getUserDetailAdminUsersIdGet({ id }).subscribe({
-      next: (data) => {
-        this.user.set(data);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.loading.set(false);
-        this.error.set(err.error?.detail || 'Failed to load user details.');
-      },
-    });
-  }
+  // Derived signals for template bindings
+  user = computed(() => this.userDetailResource.value() || null);
+  loading = computed(() => this.userDetailResource.isLoading());
+  error = computed(() => {
+    const err: any = this.userDetailResource.error();
+    if (!err) return null;
+    return err.error?.detail || 'Failed to load user details.';
+  });
 }
