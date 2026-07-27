@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
 
 from app.core.database import get_db
 from app.core.security import decode_token
@@ -34,8 +35,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Query user and eager load profile
-    query = select(User).where(User.id == user_id)
+    query = select(User).options(joinedload(User.profile)).where(User.id == user_id)
     result = await db.execute(query)
     user = result.scalars().first()
 
@@ -45,11 +45,6 @@ async def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    # Eagerly load profile
-    profile_query = select(Profile).where(Profile.id == user.id)
-    profile_result = await db.execute(profile_query)
-    user.profile = profile_result.scalars().first()
 
     return user
 

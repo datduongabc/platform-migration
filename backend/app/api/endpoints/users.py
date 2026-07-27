@@ -22,14 +22,12 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    """
-    Admin-only endpoint to list all users, with pagination and optional role filtering.
-    """
     users = await UserRepository.list_users(db, skip, limit, role, search)
 
-    # Populate profile relationships
-    for user in users:
-        user.profile = await ProfileRepository.get_by_user_id(db, user.id)
+    if not users:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Users not found"
+        )
 
     return users
 
@@ -40,16 +38,11 @@ async def get_user_detail(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    """
-    Admin-only endpoint to retrieve user account and profile details.
-    """
-    user = await UserRepository.get_by_id(db, id)
+    user = await UserRepository.get_by_id_with_profile(db, id)
 
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-
-    user.profile = await ProfileRepository.get_by_user_id(db, user.id)
 
     return user

@@ -3,10 +3,9 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from app.api.deps import get_current_user, get_db
+from app.main import app
 
-with patch("sqlalchemy.ext.asyncio.create_async_engine"):
-    from app.api.deps import get_current_user, get_db
-    from app.main import app
 
 client = TestClient(app)
 mock_db = MagicMock()
@@ -43,6 +42,7 @@ def clear_auth_overrides():
         del app.dependency_overrides[get_current_user]
 
 
+# --------------------------------------------------------------------------------
 def test_list_user_projects_authenticated_success():
     set_auth_overrides(regular_user)
     mock_db.reset_mock()
@@ -73,26 +73,26 @@ def test_list_user_projects_authenticated_success():
 
 
 def test_list_user_projects_unauthenticated():
-    # Clear overrides to invoke default security dependency which checks headers
+
     clear_auth_overrides()
     response = client.get("/projects")
-    # Should trigger 401 Unauthorized or 403 Forbidden due to HTTPBearer dependency
+
     assert response.status_code in (401, 403)
 
 
 def test_list_user_projects_invalid_auth_token_format_blackbox():
-    # Black Box security header check
+
     clear_auth_overrides()
     headers = {"Authorization": "Bearer invalid.jwt.token"}
     response = client.get("/projects", headers=headers)
-    # Expected: 401 Unauthorized because the token is invalid and cannot be decoded
+
     assert response.status_code == 401
     assert "Could not validate credentials" in response.json()["detail"]
 
 
 def test_list_user_projects_no_auth_header_blackbox():
-    # Black Box security header check: Missing Authorization header
+
     clear_auth_overrides()
     response = client.get("/projects")
-    # Expected: 403 Forbidden or 401 Unauthorized due to missing bearer token
+
     assert response.status_code in (401, 403)

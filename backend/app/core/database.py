@@ -29,14 +29,10 @@ async_session_factory = async_sessionmaker(
 Base = declarative_base()
 
 
-# DB dependency to yield session per request
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_factory() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise
-        finally:
-            await session.close()

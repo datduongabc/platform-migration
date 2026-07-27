@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -53,7 +54,7 @@ async def register(
             detail="Username already exists. Please choose another.",
         )
 
-    # Hash password and insert user
+    # Insert user by hashed password
     new_user = await UserRepository.create(
         db,
         uuid.uuid4(),
@@ -65,10 +66,15 @@ async def register(
     await ProfileRepository.create(db, new_user.id, payload.username, role="user")
 
     # Save session
-    await db.flush()
     await db.commit()
 
     return {"status": "ok", "message": "Account created successfully."}
+
+
+"""
+    Giải thích: Workflow nếu mà profile không tìm thấy return sớm, ngược lại đi so sánh match password.
+    Có thể ảnh hưởng tới security vì nếu hacker đo response timer của api thì có thể biết được là đang ở step nào
+"""
 
 
 @router.post("/login", response_model=Token)
@@ -79,13 +85,14 @@ async def login(
     generic_error = (
         "Invalid credentials. Please check your email or username and password."
     )
+
     identifier = payload.identifier
 
     # Resolve identifier to user
     user = None
 
     if "@" in identifier:
-        user = await UserRepository.get_by_email(db, identifier)
+        user = await UserRepository.get_by_email_with_profile(db, identifier)
     else:
         profile = await ProfileRepository.get_by_username(db, identifier)
 
@@ -94,22 +101,21 @@ async def login(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail=generic_error
             )
 
-        user = await UserRepository.get_by_id(db, profile.id)
+        user = await UserRepository.get_by_id_with_profile(db, profile.id)
 
-    if not user:
+    if not user or not user.profile:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=generic_error
         )
 
-    # Eagerly load profile
-    user_profile = await ProfileRepository.get_by_user_id(db, user.id)
-    if not user_profile:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=generic_error
-        )
+    user_profile = user.profile
 
     # Verify password
-    if not verify_password(payload.password, user.encrypted_password):
+    is_password_match = await asyncio.to_thread(
+        verify_password, payload.password, user.encrypted_password
+    )
+
+    if not is_password_match:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=generic_error
         )
@@ -133,8 +139,8 @@ async def login(
 async def refresh_token(
     payload: RefreshTokenRequest, db: AsyncSession = Depends(get_db)
 ):
-
     decoded = decode_token(payload.refresh_token)
+
     if not decoded or decoded.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -148,21 +154,14 @@ async def refresh_token(
             detail="Invalid refresh token claims",
         )
 
-    # Verify user exists
-    user = await UserRepository.get_by_id(db, user_id)
-    if not user:
+    user = await UserRepository.get_by_id_with_profile(db, user_id)
+    if not user or not user.profile:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
 
-    # Eagerly load profile
-    user_profile = await ProfileRepository.get_by_user_id(db, user.id)
-    if not user_profile:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User profile not found",
-        )
+    user_profile = user.profile
 
     # Create new access and refresh tokens
     new_access_token = create_access_token(subject=user.id)

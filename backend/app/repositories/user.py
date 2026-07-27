@@ -3,6 +3,8 @@ from uuid import UUID
 from app.models.user import Profile, User
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 
 class UserRepository:
@@ -13,8 +15,24 @@ class UserRepository:
         return result.scalars().first()
 
     @staticmethod
+    async def get_by_id_with_profile(
+        db: AsyncSession, user_id: UUID | str
+    ) -> User | None:
+        query = select(User).options(joinedload(User.profile)).where(User.id == user_id)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
     async def get_by_email(db: AsyncSession, email: str) -> User | None:
         query = select(User).where(User.email == email)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
+    async def get_by_email_with_profile(db: AsyncSession, email: str) -> User | None:
+        query = (
+            select(User).options(joinedload(User.profile)).where(User.email == email)
+        )
         result = await db.execute(query)
         return result.scalars().first()
 
@@ -26,8 +44,6 @@ class UserRepository:
         role: str | None = None,
         search: str | None = None,
     ) -> list[User]:
-        from sqlalchemy import or_
-
         query = select(User)
         if role or search:
             query = query.join(Profile)

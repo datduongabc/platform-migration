@@ -1,21 +1,36 @@
 from datetime import timedelta
 import pytest
+from app.api.deps import get_db
+from app.main import app
 from unittest.mock import AsyncMock, MagicMock, patch
-
 from fastapi.testclient import TestClient
+from app.core.security import (
+    get_password_hash,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+)
 
-from app.core.security import get_password_hash
+client = TestClient(app)
 
-with patch("sqlalchemy.ext.asyncio.create_async_engine"):
-    from app.api.deps import get_db
-    from app.core.security import (
-        create_access_token,
-        create_refresh_token,
-        decode_token,
-    )
-    from app.main import app
+mock_db = MagicMock()
+mock_db.execute = AsyncMock()
+mock_db.flush = AsyncMock()
+mock_db.commit = AsyncMock()
 
-# Cryptography and Token Utilities
+
+@pytest.fixture(autouse=True)
+def setup_db():
+    async def override_get_db():
+        yield mock_db
+
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    if get_db in app.dependency_overrides:
+        del app.dependency_overrides[get_db]
+
+
+# Hepler functions
 
 
 def test_password_hashing():
@@ -42,37 +57,15 @@ def test_refresh_token_creation_and_decoding():
 
 
 def test_expired_token():
-    # Generate token with negative duration so it expires immediately
     token = create_access_token("user-123", expires_delta=timedelta(minutes=-5))
     decoded = decode_token(token)
-    # Expired tokens return None during decode
     assert decoded is None
-
-
-client = TestClient(app)
-
-mock_db = MagicMock()
-mock_db.execute = AsyncMock()
-mock_db.flush = AsyncMock()
-mock_db.commit = AsyncMock()
-
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    async def override_get_db():
-        yield mock_db
-
-    app.dependency_overrides[get_db] = override_get_db
-    yield
-    if get_db in app.dependency_overrides:
-        del app.dependency_overrides[get_db]
 
 
 # Register
 
 
 def test_register_endpoint_success():
-    # Reset mock database session calls
     mock_db.reset_mock()
 
     # Mock email check and username check to return None (no conflict)
@@ -96,10 +89,8 @@ def test_register_endpoint_success():
 
 
 def test_register_email_already_exists():
-    # Reset mock database
     mock_db.reset_mock()
 
-    # Mock email check to find an existing user (causes email conflict)
     mock_existing_user = MagicMock()
     mock_result_email = MagicMock()
     mock_result_email.scalars().first.return_value = mock_existing_user
@@ -112,17 +103,15 @@ def test_register_email_already_exists():
         "password": "strongpassword123",
     }
 
-    # Exception path: Expects 409 Conflict
     response = client.post("/auth/register", json=payload)
     assert response.status_code == 409
     assert "Email already exists" in response.json()["detail"]
 
 
 def test_register_username_already_exists():
-    # Reset mock database
+
     mock_db.reset_mock()
 
-    # Mock email check to return None, but username check to return an existing profile
     mock_result_email = MagicMock()
     mock_result_email.scalars().first.return_value = None
 
@@ -138,7 +127,6 @@ def test_register_username_already_exists():
         "password": "strongpassword123",
     }
 
-    # Exception path: Expects 409 Conflict
     response = client.post("/auth/register", json=payload)
     assert response.status_code == 409
     assert "Username already exists" in response.json()["detail"]
@@ -159,10 +147,9 @@ def test_register_invalid_inputs_blackbox():
 
 
 def test_login_endpoint_success():
-    # Reset mock database session calls
+
     mock_db.reset_mock()
 
-    # Mock User and Profile objects
     mock_user = MagicMock()
     mock_user.id = "user-id-123"
     mock_user.email = "testlogin@example.com"
@@ -173,13 +160,12 @@ def test_login_endpoint_success():
     mock_profile.username = "testlogin"
     mock_profile.role = "user"
 
+    mock_user.profile = mock_profile
+
     mock_result_user = MagicMock()
     mock_result_user.scalars().first.return_value = mock_user
 
-    mock_result_profile = MagicMock()
-    mock_result_profile.scalars().first.return_value = mock_profile
-
-    mock_db.execute.side_effect = [mock_result_user, mock_result_profile]
+    mock_db.execute.side_effect = [mock_result_user]
 
     payload = {"identifier": "testlogin@example.com", "password": "strongpassword123"}
 
@@ -205,22 +191,17 @@ def test_login_with_username_whitebox():
     mock_profile.username = "testusernameonly"
     mock_profile.role = "user"
 
-    # 1. ProfileRepository.get_by_username
+    mock_user.profile = mock_profile
+
     mock_result_profile_by_username = MagicMock()
     mock_result_profile_by_username.scalars().first.return_value = mock_profile
 
-    # 2. UserRepository.get_by_id
     mock_result_user = MagicMock()
     mock_result_user.scalars().first.return_value = mock_user
-
-    # 3. ProfileRepository.get_by_user_id (eager load inside endpoint)
-    mock_result_profile_by_id = MagicMock()
-    mock_result_profile_by_id.scalars().first.return_value = mock_profile
 
     mock_db.execute.side_effect = [
         mock_result_profile_by_username,
         mock_result_user,
-        mock_result_profile_by_id,
     ]
 
     payload = {"identifier": "testusernameonly", "password": "password12345"}
@@ -233,7 +214,6 @@ def test_login_with_username_whitebox():
 def test_login_user_not_found():
     mock_db.reset_mock()
 
-    # Mock DB queries to return None (no user found with the email identifier)
     mock_result_user = MagicMock()
     mock_result_user.scalars().first.return_value = None
 
@@ -241,7 +221,6 @@ def test_login_user_not_found():
 
     payload = {"identifier": "nonexistent@example.com", "password": "password123"}
 
-    # Exception path: Expects 401 Unauthorized
     response = client.post("/auth/login", json=payload)
     assert response.status_code == 401
     assert "Invalid credentials" in response.json()["detail"]
@@ -260,17 +239,15 @@ def test_login_incorrect_password():
     mock_profile.username = "testlogin"
     mock_profile.role = "user"
 
+    mock_user.profile = mock_profile
+
     mock_result_user = MagicMock()
     mock_result_user.scalars().first.return_value = mock_user
 
-    mock_result_profile = MagicMock()
-    mock_result_profile.scalars().first.return_value = mock_profile
-
-    mock_db.execute.side_effect = [mock_result_user, mock_result_profile]
+    mock_db.execute.side_effect = [mock_result_user]
 
     payload = {"identifier": "testlogin@example.com", "password": "wrongpassword"}
 
-    # Exception path: Expects 401 Unauthorized
     response = client.post("/auth/login", json=payload)
     assert response.status_code == 401
     assert "Invalid credentials" in response.json()["detail"]

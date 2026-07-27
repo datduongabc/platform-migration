@@ -3,10 +3,10 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from app.api.deps import get_current_admin, get_current_user, get_db
+from app.main import app
+from fastapi import HTTPException
 
-with patch("sqlalchemy.ext.asyncio.create_async_engine"):
-    from app.api.deps import get_current_admin, get_current_user, get_db
-    from app.main import app
 
 client = TestClient(app)
 mock_db = MagicMock()
@@ -48,8 +48,6 @@ def set_auth_overrides(current_user):
     else:
 
         def raise_forbidden():
-            from fastapi import HTTPException
-
             raise HTTPException(status_code=403, detail="Not enough privileges")
 
         app.dependency_overrides[get_current_admin] = raise_forbidden
@@ -62,9 +60,7 @@ def clear_auth_overrides():
         del app.dependency_overrides[get_current_admin]
 
 
-# ── 1. User Management Endpoint Tests (/admin/users) ─────────────────────────
-
-
+# --------------------------------------------------------------------------------
 def test_list_users_as_admin_success():
     set_auth_overrides(admin_user)
     mock_db.reset_mock()
@@ -83,13 +79,12 @@ def test_list_users_as_admin_success():
     mock_profile.id = mock_user.id
     mock_profile.created_at = "2026-07-27T00:00:00Z"
 
+    mock_user.profile = mock_profile
+
     mock_result_users = MagicMock()
     mock_result_users.scalars().all.return_value = [mock_user]
 
-    mock_result_profile = MagicMock()
-    mock_result_profile.scalars().first.return_value = mock_profile
-
-    mock_db.execute.side_effect = [mock_result_users, mock_result_profile]
+    mock_db.execute.side_effect = [mock_result_users]
 
     response = client.get("/admin/users?role=user&search=listed")
     assert response.status_code == 200
@@ -128,13 +123,12 @@ def test_get_user_detail_as_admin_success():
     mock_profile.id = target_id
     mock_profile.created_at = "2026-07-27T00:00:00Z"
 
+    mock_user.profile = mock_profile
+
     mock_result_user = MagicMock()
     mock_result_user.scalars().first.return_value = mock_user
 
-    mock_result_profile = MagicMock()
-    mock_result_profile.scalars().first.return_value = mock_profile
-
-    mock_db.execute.side_effect = [mock_result_user, mock_result_profile]
+    mock_db.execute.side_effect = [mock_result_user]
 
     response = client.get(f"/admin/users/{str(target_id)}")
     assert response.status_code == 200
@@ -163,7 +157,6 @@ def test_get_user_detail_not_found():
 
 
 def test_get_user_detail_invalid_uuid_blackbox():
-    # Black Box parameter validation (invalid UUID string validation)
     set_auth_overrides(admin_user)
     response = client.get("/admin/users/invalid-uuid-format-string")
     assert response.status_code == 422
@@ -171,7 +164,6 @@ def test_get_user_detail_invalid_uuid_blackbox():
 
 
 def test_list_users_as_admin_role_filtering_whitebox():
-    # White Box testing: test inner filtering branch when filtering by 'admin' role
     set_auth_overrides(admin_user)
     mock_db.reset_mock()
 
@@ -189,15 +181,13 @@ def test_list_users_as_admin_role_filtering_whitebox():
     mock_admin_profile.id = mock_admin_user.id
     mock_admin_profile.created_at = "2026-07-27T00:00:00Z"
 
+    mock_admin_user.profile = mock_admin_profile
+
     mock_result_users = MagicMock()
     mock_result_users.scalars().all.return_value = [mock_admin_user]
 
-    mock_result_profile = MagicMock()
-    mock_result_profile.scalars().first.return_value = mock_admin_profile
+    mock_db.execute.side_effect = [mock_result_users]
 
-    mock_db.execute.side_effect = [mock_result_users, mock_result_profile]
-
-    # Call endpoint requesting specifically role=admin
     response = client.get("/admin/users?role=admin&limit=5")
     assert response.status_code == 200
     users = response.json()

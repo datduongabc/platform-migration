@@ -3,12 +3,11 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from app.api.deps import get_db
+from app.core.security import get_password_hash
+from app.main import app
+from datetime import datetime, timezone
 
-# Pre-emptively mock create_async_engine to prevent database connection checks during import
-with patch("sqlalchemy.ext.asyncio.create_async_engine"):
-    from app.api.deps import get_db
-    from app.core.security import get_password_hash
-    from app.main import app
 
 client = TestClient(app)
 mock_db = MagicMock()
@@ -28,7 +27,7 @@ def setup_db():
         del app.dependency_overrides[get_db]
 
 
-# ── E2E Integration Flow Test ────────────────────────────────────────────────
+# --------------------------------------------------------------------------------
 
 
 def test_e2e_user_journey_flow():
@@ -39,7 +38,6 @@ def test_e2e_user_journey_flow():
     project_id = uuid4()
 
     # User Mocks
-    from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
 
@@ -57,6 +55,8 @@ def test_e2e_user_journey_flow():
     regular_profile.avatar_key = None
     regular_profile.theme_preference = "default"
 
+    regular_user.profile = regular_profile
+
     admin_user = MagicMock()
     admin_user.id = admin_id
     admin_user.email = "admin@example.com"
@@ -71,6 +71,8 @@ def test_e2e_user_journey_flow():
     admin_profile.avatar_key = None
     admin_profile.theme_preference = "luxury"
 
+    admin_user.profile = admin_profile
+
     # Project Mock
     mock_project = MagicMock()
     mock_project.id = project_id
@@ -82,79 +84,48 @@ def test_e2e_user_journey_flow():
     mock_project.created_at = "2026-07-27T01:00:00Z"
     mock_project.updated_at = "2026-07-27T01:06:00Z"
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # DB Queries Sequence Mocking:
-    # ──────────────────────────────────────────────────────────────────────────
     # Step 1: Register regular user
     mock_reg_email = MagicMock()
-    mock_reg_email.scalars().first.return_value = None  # no email conflict
+    mock_reg_email.scalars().first.return_value = None
     mock_reg_user = MagicMock()
-    mock_reg_user.scalars().first.return_value = None  # no username conflict
+    mock_reg_user.scalars().first.return_value = None
 
     # Step 2: Login as regular user
     mock_login_user = MagicMock()
     mock_login_user.scalars().first.return_value = regular_user
-    mock_login_profile = MagicMock()
-    mock_login_profile.scalars().first.return_value = regular_profile
 
-    # Step 3: Fetch projects (calls get_current_user, then list_user_projects)
+    # Step 3: Fetch projects
     mock_proj_auth_user = MagicMock()
     mock_proj_auth_user.scalars().first.return_value = regular_user
-    mock_proj_auth_profile = MagicMock()
-    mock_proj_auth_profile.scalars().first.return_value = regular_profile
     mock_proj_list = MagicMock()
     mock_proj_list.scalars().all.return_value = [mock_project]
 
-    # Step 4: Access admin panel as regular user (calls get_current_user, then fails 403)
+    # Step 4: Access admin panel as regular user
     mock_admin_fail_user = MagicMock()
     mock_admin_fail_user.scalars().first.return_value = regular_user
-    mock_admin_fail_profile = MagicMock()
-    mock_admin_fail_profile.scalars().first.return_value = regular_profile
 
     # Step 5: Login as admin
     mock_admin_login_user = MagicMock()
     mock_admin_login_user.scalars().first.return_value = admin_user
-    mock_admin_login_profile = MagicMock()
-    mock_admin_login_profile.scalars().first.return_value = admin_profile
 
-    # Step 6: Access admin panel as admin (calls get_current_user, list_users, then gets user profile)
+    # Step 6: Access admin panel as admin
     mock_admin_auth_user = MagicMock()
     mock_admin_auth_user.scalars().first.return_value = admin_user
-    mock_admin_auth_profile = MagicMock()
-    mock_admin_auth_profile.scalars().first.return_value = admin_profile
     mock_admin_list_users = MagicMock()
     mock_admin_list_users.scalars().all.return_value = [regular_user]
-    mock_admin_fetch_reg_profile = MagicMock()
-    mock_admin_fetch_reg_profile.scalars().first.return_value = regular_profile
 
     # Apply mock execution side effects sequence
     mock_db.execute.side_effect = [
-        # 1. Register regular user
         mock_reg_email,
         mock_reg_user,
-        # 2. Login as regular user
         mock_login_user,
-        mock_login_profile,
-        # 3. Fetch projects
         mock_proj_auth_user,
-        mock_proj_auth_profile,
         mock_proj_list,
-        # 4. Access admin panel as regular user (fails before list)
         mock_admin_fail_user,
-        mock_admin_fail_profile,
-        # 5. Login as admin
         mock_admin_login_user,
-        mock_admin_login_profile,
-        # 6. Access admin panel as admin
         mock_admin_auth_user,
-        mock_admin_auth_profile,
         mock_admin_list_users,
-        mock_admin_fetch_reg_profile,
     ]
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # Execution: E2E HTTP Requests flow
-    # ──────────────────────────────────────────────────────────────────────────
 
     # 1. Register regular user
     reg_response = client.post(
@@ -185,7 +156,7 @@ def test_e2e_user_journey_flow():
     assert len(projects) == 1
     assert projects[0]["title"] == "E2E Meeting"
 
-    # 4. Try accessing admin panel as regular user (should get 403 Forbidden)
+    # 4. Accessing admin panel as regular user
     admin_response = client.get("/admin/users", headers=projects_headers)
     assert admin_response.status_code == 403
     assert admin_response.json()["detail"] == "Not enough privileges"
@@ -200,7 +171,7 @@ def test_e2e_user_journey_flow():
     assert "access_token" in admin_tokens
     assert admin_tokens["role"] == "admin"
 
-    # 6. Access admin panel as admin (should get 200 OK)
+    # 6. Access admin panel as admin
     admin_headers = {"Authorization": f"Bearer {admin_tokens['access_token']}"}
     admin_users_response = client.get("/admin/users", headers=admin_headers)
     assert admin_users_response.status_code == 200
