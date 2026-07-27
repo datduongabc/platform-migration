@@ -139,36 +139,38 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-b-border/60">
-                  <tr *ngFor="let p of projects()" class="hover:bg-b-clay/10 transition-colors">
-                    <td class="py-4 px-6 font-semibold text-b-fg font-serif text-base">
-                      {{ p.title || 'Untitled Meeting' }}
-                    </td>
-                    <td class="py-4 px-6 text-sm text-b-fg/70 font-mono">
-                      {{ formatDuration(p.duration_seconds) }}
-                    </td>
-                    <td class="py-4 px-6">
-                      <span
-                        class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border"
-                        [class.bg-green-50]="p.status === 'done'"
-                        [class.text-green-700]="p.status === 'done'"
-                        [class.border-green-200]="p.status === 'done'"
-                        [class.bg-blue-50]="p.status === 'processing'"
-                        [class.text-blue-700]="p.status === 'processing'"
-                        [class.border-blue-200]="p.status === 'processing'"
-                        [class.bg-yellow-50]="p.status === 'pending'"
-                        [class.text-yellow-700]="p.status === 'pending'"
-                        [class.border-yellow-200]="p.status === 'pending'"
-                        [class.bg-red-50]="p.status === 'failed'"
-                        [class.text-red-700]="p.status === 'failed'"
-                        [class.border-red-200]="p.status === 'failed'"
-                      >
-                        {{ p.status || 'pending' }}
-                      </span>
-                    </td>
-                    <td class="py-4 px-6 text-sm text-b-fg/70">
-                      {{ p.created_at | date: 'mediumDate' }}
-                    </td>
-                  </tr>
+                  @for (p of projects(); track p.id) {
+                    <tr class="hover:bg-b-clay/10 transition-colors">
+                      <td class="py-4 px-6 font-semibold text-b-fg font-serif text-base">
+                        {{ p.title || 'Untitled Meeting' }}
+                      </td>
+                      <td class="py-4 px-6 text-sm text-b-fg/70 font-mono">
+                        {{ formatDuration(p.duration_seconds) }}
+                      </td>
+                      <td class="py-4 px-6">
+                        <span
+                          class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border"
+                          [class.bg-green-50]="p.status === 'done'"
+                          [class.text-green-700]="p.status === 'done'"
+                          [class.border-green-200]="p.status === 'done'"
+                          [class.bg-blue-50]="p.status === 'processing'"
+                          [class.text-blue-700]="p.status === 'processing'"
+                          [class.border-blue-200]="p.status === 'processing'"
+                          [class.bg-yellow-50]="p.status === 'pending'"
+                          [class.text-yellow-700]="p.status === 'pending'"
+                          [class.border-yellow-200]="p.status === 'pending'"
+                          [class.bg-red-50]="p.status === 'failed'"
+                          [class.text-red-700]="p.status === 'failed'"
+                          [class.border-red-200]="p.status === 'failed'"
+                        >
+                          {{ p.status || 'pending' }}
+                        </span>
+                      </td>
+                      <td class="py-4 px-6 text-sm text-b-fg/70">
+                        {{ p.created_at | date: 'mediumDate' }}
+                      </td>
+                    </tr>
+                  }
                 </tbody>
               </table>
             </div>

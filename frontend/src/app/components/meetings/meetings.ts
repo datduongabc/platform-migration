@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { ProjectsByUserService } from '../../api/services/projects-by-user.service';
@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './meetings.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeetingsComponent {
   protected readonly authService = inject(AuthService);

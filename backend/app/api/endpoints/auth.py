@@ -3,12 +3,21 @@ import uuid
 
 from app.core.database import get_db
 from app.core.limiter import limiter
-from app.core.security import (create_access_token, create_refresh_token,
-                               decode_token, get_password_hash,
-                               verify_password)
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_password_hash,
+    verify_password,
+)
 from app.repositories.user import ProfileRepository, UserRepository
-from app.schemas.codegen import (LoginRequest, RefreshTokenRequest,
-                                 RegisterRequest, Token, TokenRefreshResponse)
+from app.schemas.codegen import (
+    LoginRequest,
+    RefreshTokenRequest,
+    RegisterRequest,
+    Token,
+    TokenRefreshResponse,
+)
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +27,9 @@ router = APIRouter()
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-async def register(request: Request, payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(
+    request: Request, payload: RegisterRequest, db: AsyncSession = Depends(get_db)
+):
     # Normalize and validate email
     try:
         email = validate_email(payload.email, check_deliverability=False).normalized
@@ -73,7 +84,9 @@ DUMMY_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW"
 
 @router.post("/login", response_model=Token)
 @limiter.limit("10/minute")
-async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(
+    request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)
+):
     generic_error = (
         "Invalid credentials. Please check your email or username and password."
     )

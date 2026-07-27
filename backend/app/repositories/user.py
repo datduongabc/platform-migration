@@ -58,7 +58,9 @@ class UserRepository:
         search: str | None = None,
     ) -> list[User]:
         if role or search:
-            query = select(User).join(User.profile).options(contains_eager(User.profile))
+            query = (
+                select(User).join(User.profile).options(contains_eager(User.profile))
+            )
         else:
             query = select(User).options(joinedload(User.profile))
 
