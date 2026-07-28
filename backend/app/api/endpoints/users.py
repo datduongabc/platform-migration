@@ -22,12 +22,6 @@ async def list_users(
     admin: User = Depends(get_current_admin),
 ):
     users = await UserRepository.list_users(db, skip, limit, role, search)
-
-    if not users:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Users not found"
-        )
-
     return users
 
 

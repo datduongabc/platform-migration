@@ -39,17 +39,17 @@ async def register(
             detail=f"Invalid email address: {str(e)}",
         )
 
-    # Check if email or username already exists in parallel reduces database round-trips
-    existing_user, existing_profile = await asyncio.gather(
-        UserRepository.get_by_email(db, email),
-        ProfileRepository.get_by_username(db, payload.username),
-    )
+    # Checking if email already existed
+    existing_user = await UserRepository.get_by_email(db, email)
 
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already exists. Please choose another.",
         )
+
+    # Checking if username already existed
+    existing_profile = await ProfileRepository.get_by_username(db, payload.username)
 
     if existing_profile:
         raise HTTPException(
