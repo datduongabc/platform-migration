@@ -44,7 +44,7 @@ describe('AuthService', () => {
     req.flush({ message: 'Success' });
   });
 
-  it('should login, set tokens in localStorage, and update currentUser', () => {
+  it('should login, set user in sessionStorage, and update currentUser', () => {
     const mockRequest: LoginRequest = {
       identifier: 'testuser',
       password: 'password123',
@@ -62,8 +62,7 @@ describe('AuthService', () => {
 
     service.login(mockRequest).subscribe((response) => {
       expect(response).toEqual(mockResponse);
-      expect(localStorage.getItem('access_token')).toBe('access-123');
-      expect(localStorage.getItem('refresh_token')).toBe('refresh-123');
+      expect(sessionStorage.getItem('user')).toBeTruthy();
       expect(service.currentUser()).toEqual({
         id: 'user-123',
         email: 'test@example.com',
@@ -77,15 +76,11 @@ describe('AuthService', () => {
     req.flush(mockResponse);
   });
 
-  it('should logout and clear localStorage and currentUser', () => {
-    localStorage.setItem('access_token', 'access-123');
-    localStorage.setItem('refresh_token', 'refresh-123');
-    localStorage.setItem('user', JSON.stringify({ id: '1' }));
+  it('should logout and clear sessionStorage and currentUser', () => {
+    sessionStorage.setItem('user', JSON.stringify({ id: '1' }));
 
     service.logout().subscribe(() => {
-      expect(localStorage.getItem('access_token')).toBeNull();
-      expect(localStorage.getItem('refresh_token')).toBeNull();
-      expect(localStorage.getItem('user')).toBeNull();
+      expect(sessionStorage.getItem('user')).toBeNull();
       expect(service.currentUser()).toBeNull();
     });
 
@@ -94,9 +89,7 @@ describe('AuthService', () => {
     req.flush({});
   });
 
-  it('should refresh access token', () => {
-    localStorage.setItem('refresh_token', 'refresh-123');
-
+  it('should refresh access token via cookies', () => {
     const mockResponse: TokenRefreshResponse = {
       access_token: 'new-access-123',
       refresh_token: 'new-refresh-123',
@@ -105,13 +98,11 @@ describe('AuthService', () => {
 
     service.refreshToken().subscribe((response) => {
       expect(response).toEqual(mockResponse);
-      expect(localStorage.getItem('access_token')).toBe('new-access-123');
-      expect(localStorage.getItem('refresh_token')).toBe('new-refresh-123');
     });
 
     const req = httpMock.expectOne('http://localhost:8000/auth/refresh');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ refresh_token: 'refresh-123' });
+    expect(req.request.body).toEqual({ refresh_token: '' });
     req.flush(mockResponse);
   });
 });

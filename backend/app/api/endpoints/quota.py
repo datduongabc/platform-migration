@@ -1,10 +1,10 @@
 from typing import Any, Dict, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_current_user
+from app.api.deps import get_current_admin
 from app.core.database import get_db
 from app.models.user import User
 from app.services.quota import (
@@ -58,10 +58,12 @@ async def move_quota(
     }
 
 
-@router.post("/admin/pipeline/reconcile-quota")
+@router.post(
+    "/admin/pipeline/reconcile-quota",
+    dependencies=[Depends(get_current_admin)],
+)
 async def reconcile_quota(
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_current_admin),
 ):
     """
     Admin trigger for quota reconciliation sweep on stuck processing meetings.

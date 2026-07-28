@@ -1,6 +1,5 @@
 import asyncio
 import ssl
-import urllib.error
 import urllib.request
 from contextlib import asynccontextmanager
 

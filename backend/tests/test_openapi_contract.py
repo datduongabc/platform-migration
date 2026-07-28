@@ -2,6 +2,7 @@ import os
 import yaml
 from app.main import app
 
+
 def test_openapi_contract():
     """
     Contract Test: Validates that the running FastAPI application's generated
@@ -12,7 +13,9 @@ def test_openapi_contract():
     openapi_path = os.path.join(current_dir, "..", "..", "openapi.yml")
     openapi_path = os.path.abspath(openapi_path)
 
-    assert os.path.exists(openapi_path), f"openapi.yml contract file not found at {openapi_path}"
+    assert os.path.exists(openapi_path), (
+        f"openapi.yml contract file not found at {openapi_path}"
+    )
 
     # Load static contract
     with open(openapi_path, "r", encoding="utf-8") as f:
@@ -22,7 +25,9 @@ def test_openapi_contract():
     generated_spec = app.openapi()
 
     # Verify OpenAPI version format
-    assert generated_spec.get("openapi", "").startswith("3."), "Generated OpenAPI version should be 3.x.x"
+    assert generated_spec.get("openapi", "").startswith("3."), (
+        "Generated OpenAPI version should be 3.x.x"
+    )
 
     # Extract paths from both specs
     static_paths = static_spec.get("paths", {})
@@ -38,7 +43,16 @@ def test_openapi_contract():
         # Check HTTP methods under the path
         for method, method_item in path_item.items():
             # Skip Swagger/OpenAPI metadata fields
-            if method not in ["get", "post", "put", "delete", "options", "head", "patch", "trace"]:
+            if method not in [
+                "get",
+                "post",
+                "put",
+                "delete",
+                "options",
+                "head",
+                "patch",
+                "trace",
+            ]:
                 continue
 
             assert method in generated_paths[path], (
@@ -47,7 +61,10 @@ def test_openapi_contract():
 
             # Check path/query parameters
             static_params = {p["name"]: p for p in method_item.get("parameters", [])}
-            generated_params = {p["name"]: p for p in generated_paths[path][method].get("parameters", [])}
+            generated_params = {
+                p["name"]: p
+                for p in generated_paths[path][method].get("parameters", [])
+            }
 
             for param_name, param_spec in static_params.items():
                 assert param_name in generated_params, (

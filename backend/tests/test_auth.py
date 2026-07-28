@@ -250,3 +250,41 @@ def test_login_incorrect_password():
     response = client.post("/auth/login", json=payload)
     assert response.status_code == 401
     assert "Invalid credentials" in response.json()["detail"]
+
+
+def test_login_sets_httponly_cookies():
+    mock_db.reset_mock()
+
+    mock_user = MagicMock()
+    mock_user.id = "user-id-cookie"
+    mock_user.email = "cookie@example.com"
+    mock_user.encrypted_password = get_password_hash("cookiepassword")
+
+    mock_profile = MagicMock()
+    mock_profile.id = "user-id-cookie"
+    mock_profile.username = "cookieuser"
+    mock_profile.role = "user"
+    mock_user.profile = mock_profile
+
+    mock_result_user = MagicMock()
+    mock_result_user.scalars().first.return_value = mock_user
+    mock_db.execute.side_effect = [mock_result_user]
+
+    response = client.post(
+        "/auth/login",
+        json={"identifier": "cookie@example.com", "password": "cookiepassword"},
+    )
+    assert response.status_code == 200
+    assert "access_token" in response.cookies
+    assert "refresh_token" in response.cookies
+
+
+def test_logout_deletes_cookies():
+    response = client.post("/auth/logout")
+    assert response.status_code == 200
+    assert response.json()["message"] == "Logged out successfully."
+    # Fastapi delete_cookie sets cookie value to empty with max-age=0 / expires in past
+    assert (
+        response.cookies.get("access_token") is None
+        or response.cookies.get("access_token") == ""
+    )

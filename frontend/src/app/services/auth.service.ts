@@ -28,10 +28,9 @@ export class AuthService {
 
   private loadSession(): void {
     try {
-      const accessToken = localStorage.getItem('access_token');
-      const userJson = localStorage.getItem('user');
+      const userJson = sessionStorage.getItem('user');
 
-      if (accessToken && userJson) {
+      if (userJson) {
         this.currentUser.set(JSON.parse(userJson));
       }
     } catch (e) {
@@ -48,56 +47,40 @@ export class AuthService {
   login(payload: LoginRequest): Observable<Token> {
     return this.apiAuthService.loginAuthLoginPost({ body: payload }).pipe(
       tap((response) => {
-        localStorage.setItem('access_token', response.access_token);
-        localStorage.setItem('refresh_token', response.refresh_token);
-
         const user: User = {
           id: response.user_id,
           email: response.email,
           username: response.username,
           role: response.role,
         };
-        localStorage.setItem('user', JSON.stringify(user));
+        sessionStorage.setItem('user', JSON.stringify(user));
         this.currentUser.set(user);
       }),
     );
   }
 
   logout(): Observable<any> {
-    // Clear storage and reset state immediately
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    // Clear session storage and reset state immediately
+    sessionStorage.removeItem('user');
     this.currentUser.set(null);
 
-    // Call logout endpoint (non-blocking, best-effort)
+    // Call logout endpoint to clear HttpOnly cookies server-side
     return this.apiAuthService
       .logoutAuthLogoutPost()
       .pipe(catchError(() => of({ message: 'Logged out locally.' })));
   }
 
   refreshToken(): Observable<TokenRefreshResponse> {
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (!refreshToken) {
-      return throwError(() => new Error('No refresh token available'));
-    }
-
-    return this.apiAuthService
-      .refreshTokenAuthRefreshPost({ body: { refresh_token: refreshToken } })
-      .pipe(
-        tap((response) => {
-          localStorage.setItem('access_token', response.access_token);
-          localStorage.setItem('refresh_token', response.refresh_token);
-        }),
-        catchError((error) => {
-          // If refreshing fails, log out the user
-          this.logout().subscribe();
-          return throwError(() => error);
-        }),
-      );
+    return this.apiAuthService.refreshTokenAuthRefreshPost({ body: { refresh_token: '' } }).pipe(
+      catchError((error) => {
+        // If refreshing fails, log out the user
+        this.logout().subscribe();
+        return throwError(() => error);
+      }),
+    );
   }
 
   getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
+    return null;
   }
 }

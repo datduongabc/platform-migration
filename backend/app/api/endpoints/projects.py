@@ -18,9 +18,6 @@ async def list_user_projects(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Get the list of projects (meetings) belonging to the authenticated user.
-    """
     projects = await ProjectRepository.list_user_projects(
         db, current_user.id, skip, limit
     )

@@ -150,15 +150,18 @@ def test_e2e_user_journey_flow():
     assert regular_tokens["role"] == "user"
 
     # 3. Fetch Projects
-    projects_headers = {"Authorization": f"Bearer {regular_tokens['access_token']}"}
-    projects_response = client.get("/projects", headers=projects_headers)
+    projects_response = client.get(
+        "/projects", cookies={"access_token": regular_tokens["access_token"]}
+    )
     assert projects_response.status_code == 200
     projects = projects_response.json()
     assert len(projects) == 1
     assert projects[0]["title"] == "E2E Meeting"
 
     # 4. Accessing admin panel as regular user
-    admin_response = client.get("/admin/users", headers=projects_headers)
+    admin_response = client.get(
+        "/admin/users", cookies={"access_token": regular_tokens["access_token"]}
+    )
     assert admin_response.status_code == 403
     assert admin_response.json()["detail"] == "Not enough privileges"
 
@@ -173,8 +176,9 @@ def test_e2e_user_journey_flow():
     assert admin_tokens["role"] == "admin"
 
     # 6. Access admin panel as admin
-    admin_headers = {"Authorization": f"Bearer {admin_tokens['access_token']}"}
-    admin_users_response = client.get("/admin/users", headers=admin_headers)
+    admin_users_response = client.get(
+        "/admin/users", cookies={"access_token": admin_tokens["access_token"]}
+    )
     assert admin_users_response.status_code == 200
     users_list = admin_users_response.json()
     assert len(users_list) == 1
@@ -182,6 +186,8 @@ def test_e2e_user_journey_flow():
     assert users_list[0]["profile"]["username"] == "regular_user"
 
     # 7. Logout
-    logout_response = client.post("/auth/logout", headers=admin_headers)
+    logout_response = client.post(
+        "/auth/logout", cookies={"access_token": admin_tokens["access_token"]}
+    )
     assert logout_response.status_code == 200
     assert logout_response.json()["message"] == "Logged out successfully."

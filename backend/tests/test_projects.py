@@ -82,16 +82,18 @@ def test_list_user_projects_unauthenticated():
 def test_list_user_projects_invalid_auth_token_format_blackbox():
 
     clear_auth_overrides()
-    headers = {"Authorization": "Bearer invalid.jwt.token"}
-    response = client.get("/projects", headers=headers)
+    client.cookies.set("access_token", "invalid.jwt.token")
+    response = client.get("/projects")
+    client.cookies.clear()
 
     assert response.status_code == 401
-    assert "Could not validate credentials" in response.json()["detail"]
+    assert "Invalid access token" in response.json()["detail"]
 
 
 def test_list_user_projects_no_auth_header_blackbox():
 
     clear_auth_overrides()
+    client.cookies.clear()
     response = client.get("/projects")
 
     assert response.status_code in (401, 403)

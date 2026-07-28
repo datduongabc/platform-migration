@@ -13,23 +13,15 @@ export const authInterceptor: HttpInterceptorFn = (
   next: HttpHandlerFn,
 ) => {
   const authService = inject(AuthService);
-  const token = authService.getAccessToken();
 
-  let authReq = req;
-  if (
-    token &&
-    !req.url.includes('/auth/refresh') &&
-    !req.url.includes('/auth/login') &&
-    !req.url.includes('/auth/register')
-  ) {
-    authReq = req.clone({
-      headers: req.headers.set('Authorization', `Bearer ${token}`),
-    });
-  }
+  // Always send HttpOnly cookies with requests
+  const authReq = req.clone({
+    withCredentials: true,
+  });
 
   return next(authReq).pipe(
     catchError((error) => {
-      // If we get a 401 Unauthorized, try to refresh the token (excluding login/refresh endpoints)
+      // If we get a 401 Unauthorized, try to refresh the token (excluding auth endpoints)
       if (
         error instanceof HttpErrorResponse &&
         error.status === 401 &&
@@ -38,15 +30,14 @@ export const authInterceptor: HttpInterceptorFn = (
         !req.url.includes('/auth/register')
       ) {
         return authService.refreshToken().pipe(
-          switchMap((response) => {
-            // Retry the request with the new access token
+          switchMap(() => {
+            // Retry the request with credentials
             const retryReq = req.clone({
-              headers: req.headers.set('Authorization', `Bearer ${response.access_token}`),
+              withCredentials: true,
             });
             return next(retryReq);
           }),
           catchError((refreshErr) => {
-            // If token refresh fails, propagate error
             return throwError(() => refreshErr);
           }),
         );

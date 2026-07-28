@@ -1,6 +1,7 @@
 import asyncio
 import uuid
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.core.security import (
@@ -19,10 +20,50 @@ from app.schemas.codegen import (
     TokenRefreshResponse,
 )
 from email_validator import EmailNotValidError, validate_email
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
+
+
+# Helper function to set access_token and refresh_token HttpOnly cookies
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_WEEKS * 7 * 24 * 3600,
+        path="/",
+    )
+
+
+# Helper function to delete access_token and refresh_token cookies
+def clear_auth_cookies(response: Response):
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+    )
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -85,7 +126,10 @@ DUMMY_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW"
 @router.post("/login", response_model=Token)
 @limiter.limit("10/minute")
 async def login(
-    request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)
+    request: Request,
+    payload: LoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
 ):
     generic_error = (
         "Invalid credentials. Please check your email or username and password."
@@ -117,6 +161,9 @@ async def login(
     access_token = create_access_token(subject=user.id)
     refresh_token = create_refresh_token(subject=user.id)
 
+    # Set HttpOnly, Secure, SameSite cookies
+    set_auth_cookies(response, access_token, refresh_token)
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -130,9 +177,23 @@ async def login(
 
 @router.post("/refresh", response_model=TokenRefreshResponse)
 async def refresh_token(
-    request: Request, payload: RefreshTokenRequest, db: AsyncSession = Depends(get_db)
+    request: Request,
+    response: Response,
+    payload: RefreshTokenRequest | None = None,
+    db: AsyncSession = Depends(get_db),
 ):
-    decoded = decode_token(payload.refresh_token)
+    token_str = request.cookies.get("refresh_token")
+
+    if not token_str and payload and payload.refresh_token:
+        token_str = payload.refresh_token
+
+    if not token_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token missing",
+        )
+
+    decoded = decode_token(token_str)
 
     if not decoded or decoded.get("type") != "refresh":
         raise HTTPException(
@@ -159,6 +220,9 @@ async def refresh_token(
     new_access_token = create_access_token(subject=user.id)
     new_refresh_token = create_refresh_token(subject=user.id)
 
+    # Set updated cookies
+    set_auth_cookies(response, new_access_token, new_refresh_token)
+
     return {
         "access_token": new_access_token,
         "refresh_token": new_refresh_token,
@@ -167,5 +231,6 @@ async def refresh_token(
 
 
 @router.post("/logout")
-async def logout(request: Request):
+async def logout(response: Response):
+    clear_auth_cookies(response)
     return {"status": "ok", "message": "Logged out successfully."}
