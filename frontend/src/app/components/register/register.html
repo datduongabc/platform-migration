@@ -22,8 +22,8 @@
       <p class="text-center font-serif text-xl font-semibold text-b-fg mb-6">Create your account</p>
 
       <form
+        [formGroup]="registerForm"
         (ngSubmit)="handleSubmit()"
-        #registerForm="ngForm"
         novalidate
         class="flex flex-col gap-4"
       >
@@ -33,15 +33,24 @@
           </span>
           <input
             type="email"
-            name="email"
-            [(ngModel)]="email"
-            required
-            email
+            formControlName="email"
             autocomplete="email"
             autofocus
             class="input-botanical"
             placeholder="you@example.com"
+            [class.border-red-500]="
+              registerForm.get('email')?.touched && registerForm.get('email')?.invalid
+            "
           />
+          @if (registerForm.get('email')?.touched && registerForm.get('email')?.invalid) {
+            <span class="text-xs text-red-600 font-sans">
+              @if (registerForm.get('email')?.hasError('required')) {
+                Email is required
+              } @else if (registerForm.get('email')?.hasError('email')) {
+                Invalid email format
+              }
+            </span>
+          }
         </label>
 
         <label class="flex flex-col gap-1.5">
@@ -50,16 +59,27 @@
           </span>
           <input
             type="text"
-            name="username"
-            [(ngModel)]="username"
-            required
-            minlength="3"
-            maxlength="30"
-            pattern="^[a-z0-9_-]+$"
+            formControlName="username"
             autocomplete="username"
             class="input-botanical"
             placeholder="3–30 chars: letters, digits, - or _"
+            [class.border-red-500]="
+              registerForm.get('username')?.touched && registerForm.get('username')?.invalid
+            "
           />
+          @if (registerForm.get('username')?.touched && registerForm.get('username')?.invalid) {
+            <span class="text-xs text-red-600 font-sans">
+              @if (registerForm.get('username')?.hasError('required')) {
+                Username is required
+              } @else if (registerForm.get('username')?.hasError('minlength')) {
+                Username must be at least 3 characters
+              } @else if (registerForm.get('username')?.hasError('maxlength')) {
+                Username cannot exceed 30 characters
+              } @else if (registerForm.get('username')?.hasError('pattern')) {
+                Only lower letters, digits, - and _ are allowed
+              }
+            </span>
+          }
         </label>
 
         <label class="flex flex-col gap-1.5">
@@ -69,13 +89,13 @@
           <div class="relative">
             <input
               [type]="showPassword() ? 'text' : 'password'"
-              name="password"
-              [(ngModel)]="password"
-              required
-              minlength="8"
+              formControlName="password"
               autocomplete="new-password"
               class="input-botanical w-full pr-10"
               placeholder="At least 8 characters"
+              [class.border-red-500]="
+                registerForm.get('password')?.touched && registerForm.get('password')?.invalid
+              "
             />
             <button
               type="button"
@@ -120,6 +140,15 @@
               }
             </button>
           </div>
+          @if (registerForm.get('password')?.touched && registerForm.get('password')?.invalid) {
+            <span class="text-xs text-red-600 font-sans">
+              @if (registerForm.get('password')?.hasError('required')) {
+                Password is required
+              } @else if (registerForm.get('password')?.hasError('minlength')) {
+                Password must be at least 8 characters
+              }
+            </span>
+          }
         </label>
 
         @if (error()) {

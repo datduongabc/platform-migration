@@ -156,47 +156,49 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-b-border/60">
-              <tr *ngFor="let u of users()" class="hover:bg-b-clay/10 transition-colors">
-                <td class="py-4 px-6">
-                  <div class="flex items-center gap-3">
-                    <div
-                      class="h-10 w-10 rounded-full bg-b-clay flex items-center justify-center font-bold text-b-fg uppercase border border-b-border/80"
-                    >
-                      {{ (u.profile?.username || 'U')[0] }}
-                    </div>
-                    <div>
-                      <div class="font-semibold text-b-fg font-serif text-base">
-                        {{ u.profile?.display_name || u.profile?.username || 'No Username' }}
+              @for (u of users(); track u.id) {
+                <tr class="hover:bg-b-clay/10 transition-colors">
+                  <td class="py-4 px-6">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="h-10 w-10 rounded-full bg-b-clay flex items-center justify-center font-bold text-b-fg uppercase border border-b-border/80"
+                      >
+                        {{ (u.profile?.username || 'U')[0] }}
                       </div>
-                      <div class="text-xs text-b-fg/60">{{ u.email }}</div>
+                      <div>
+                        <div class="font-semibold text-b-fg font-serif text-base">
+                          {{ u.profile?.display_name || u.profile?.username || 'No Username' }}
+                        </div>
+                        <div class="text-xs text-b-fg/60">{{ u.email }}</div>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td class="py-4 px-6">
-                  <span
-                    class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border"
-                    [class.bg-green-50]="u.profile?.role === 'admin'"
-                    [class.text-green-700]="u.profile?.role === 'admin'"
-                    [class.border-green-200]="u.profile?.role === 'admin'"
-                    [class.bg-blue-50]="u.profile?.role !== 'admin'"
-                    [class.text-blue-700]="u.profile?.role !== 'admin'"
-                    [class.border-blue-200]="u.profile?.role !== 'admin'"
-                  >
-                    {{ u.profile?.role || 'user' }}
-                  </span>
-                </td>
-                <td class="py-4 px-6 text-sm text-b-fg/70">
-                  {{ u.created_at | date: 'mediumDate' }}
-                </td>
-                <td class="py-4 px-6 text-right">
-                  <a
-                    [routerLink]="['/admin/users', u.id]"
-                    class="inline-flex items-center justify-center px-4 py-2 bg-b-clay hover:bg-b-border/50 text-b-fg text-xs font-bold rounded-2xl transition-all border border-b-border/60"
-                  >
-                    View Details
-                  </a>
-                </td>
-              </tr>
+                  </td>
+                  <td class="py-4 px-6">
+                    <span
+                      class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border"
+                      [class.bg-green-50]="u.profile?.role === 'admin'"
+                      [class.text-green-700]="u.profile?.role === 'admin'"
+                      [class.border-green-200]="u.profile?.role === 'admin'"
+                      [class.bg-blue-50]="u.profile?.role !== 'admin'"
+                      [class.text-blue-700]="u.profile?.role !== 'admin'"
+                      [class.border-blue-200]="u.profile?.role !== 'admin'"
+                    >
+                      {{ u.profile?.role || 'user' }}
+                    </span>
+                  </td>
+                  <td class="py-4 px-6 text-sm text-b-fg/70">
+                    {{ u.created_at | date: 'mediumDate' }}
+                  </td>
+                  <td class="py-4 px-6 text-right">
+                    <a
+                      [routerLink]="['/admin/users', u.id]"
+                      class="inline-flex items-center justify-center px-4 py-2 bg-b-clay hover:bg-b-border/50 text-b-fg text-xs font-bold rounded-2xl transition-all border border-b-border/60"
+                    >
+                      View Details
+                    </a>
+                  </td>
+                </tr>
+              }
             </tbody>
           </table>
         </div>

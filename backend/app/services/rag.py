@@ -83,13 +83,15 @@ def chunk_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             [f"[{s.get('speaker', 'Speaker')}] {s.get('text', '')}" for s in slice_segs]
         )
 
-        chunks.append({
-            "chunk_index": len(chunks),
-            "content": content,
-            "start_ms": slice_segs[0].get("start_ms", 0),
-            "end_ms": slice_segs[-1].get("end_ms", 0),
-            "token_count": math.ceil(len(content) / 4),
-        })
+        chunks.append(
+            {
+                "chunk_index": len(chunks),
+                "content": content,
+                "start_ms": slice_segs[0].get("start_ms", 0),
+                "end_ms": slice_segs[-1].get("end_ms", 0),
+                "token_count": math.ceil(len(content) / 4),
+            }
+        )
 
         # Advance: apply overlap only when we filled a full chunk.
         if j >= len(segments):

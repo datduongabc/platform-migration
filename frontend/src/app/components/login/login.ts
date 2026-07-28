@@ -1,23 +1,25 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { LoginRequest } from '../../api/models';
-import { LoginRequestSchema } from '../../schemas/api.schemas';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, ReactiveFormsModule],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {
+  private readonly fb = inject(NonNullableFormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-  identifier = '';
-  password = '';
+  protected readonly loginForm = this.fb.group({
+    identifier: ['', [Validators.required]],
+    password: ['', [Validators.required, Validators.minLength(8)]],
+  });
 
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(false);
@@ -28,21 +30,15 @@ export class LoginComponent {
   }
 
   protected handleSubmit(): void {
-    const payload: LoginRequest = {
-      identifier: this.identifier,
-      password: this.password,
-    };
-
-    const validation = LoginRequestSchema.safeParse(payload);
-
-    if (!validation.success) {
-      const firstError = validation.error.issues[0];
-      this.error.set(firstError.message);
+    if (this.loginForm.invalid) {
+      this.loginForm.markAllAsTouched();
       return;
     }
 
     this.error.set(null);
     this.loading.set(true);
+
+    const payload = this.loginForm.getRawValue() as LoginRequest;
 
     this.authService.login(payload).subscribe({
       next: () => {

@@ -187,12 +187,15 @@ async def reconcile_wallets(db: AsyncSession) -> dict:
     quota_ledger and correct any drift. (QUO-04 ledger↔wallet reconciliation)
     """
     import uuid
+
     run_id = str(uuid.uuid4())
     logger.info(f"[wallet-reconcile] starting run={run_id} mode=detect_and_adjust")
 
     # 1. Fetch all wallets
     res_wallets = await db.execute(
-        text("SELECT user_id, audio_seconds_remaining, agent_queries_remaining FROM public.quota_wallets")
+        text(
+            "SELECT user_id, audio_seconds_remaining, agent_queries_remaining FROM public.quota_wallets"
+        )
     )
     wallets = res_wallets.mappings().all()
 
@@ -207,11 +210,13 @@ async def reconcile_wallets(db: AsyncSession) -> dict:
         try:
             # 2. Recompute from ledger
             res_ledger = await db.execute(
-                text("SELECT delta_audio_seconds, delta_agent_queries FROM public.quota_ledger WHERE user_id = :user_id"),
-                {"user_id": user_id}
+                text(
+                    "SELECT delta_audio_seconds, delta_agent_queries FROM public.quota_ledger WHERE user_id = :user_id"
+                ),
+                {"user_id": user_id},
             )
             rows = res_ledger.mappings().all()
-            
+
             ledger_audio = sum(float(r["delta_audio_seconds"]) for r in rows)
             ledger_queries = sum(int(r["delta_agent_queries"]) for r in rows)
 
@@ -246,9 +251,9 @@ async def reconcile_wallets(db: AsyncSession) -> dict:
                     metadata={
                         "audio_drift": audio_drift,
                         "query_drift": query_drift,
-                        "run_id": run_id
-                    }
-                )
+                        "run_id": run_id,
+                    },
+                ),
             )
 
             if result.status != "already_applied":
@@ -257,7 +262,7 @@ async def reconcile_wallets(db: AsyncSession) -> dict:
                     f"[wallet-reconcile] adjusted user {user_id}: "
                     f"audio={audio_drift:+.1f}s, queries={query_drift:+d}"
                 )
-            
+
             # Commit after each user to make adjustments durable and avoid long locks
             await db.commit()
 
@@ -265,7 +270,7 @@ async def reconcile_wallets(db: AsyncSession) -> dict:
             await db.rollback()
             logger.error(
                 f"[wallet-reconcile] error processing user {user_id}: {err}",
-                exc_info=True
+                exc_info=True,
             )
 
     logger.info(
@@ -276,5 +281,5 @@ async def reconcile_wallets(db: AsyncSession) -> dict:
         "checked": checked,
         "drifted": drifted,
         "adjusted": adjusted,
-        "run_id": run_id
+        "run_id": run_id,
     }

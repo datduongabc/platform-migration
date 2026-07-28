@@ -1,24 +1,34 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { RegisterRequest } from '../../api/models';
-import { RegisterRequestSchema } from '../../schemas/api.schemas';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, ReactiveFormsModule],
   templateUrl: './register.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RegisterComponent {
+  private readonly fb = inject(NonNullableFormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-  email = '';
-  username = '';
-  password = '';
+  protected readonly registerForm = this.fb.group({
+    email: ['', [Validators.required, Validators.email]],
+    username: [
+      '',
+      [
+        Validators.required,
+        Validators.minLength(3),
+        Validators.maxLength(30),
+        Validators.pattern(/^[a-z0-9_-]+$/),
+      ],
+    ],
+    password: ['', [Validators.required, Validators.minLength(8)]],
+  });
 
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(false);
@@ -29,22 +39,15 @@ export class RegisterComponent {
   }
 
   protected handleSubmit(): void {
-    const payload: RegisterRequest = {
-      email: this.email,
-      username: this.username,
-      password: this.password,
-    };
-
-    const validation = RegisterRequestSchema.safeParse(payload);
-
-    if (!validation.success) {
-      const firstError = validation.error.issues[0];
-      this.error.set(firstError.message);
+    if (this.registerForm.invalid) {
+      this.registerForm.markAllAsTouched();
       return;
     }
 
     this.error.set(null);
     this.loading.set(true);
+
+    const payload = this.registerForm.getRawValue() as RegisterRequest;
 
     this.authService.register(payload).subscribe({
       next: () => {

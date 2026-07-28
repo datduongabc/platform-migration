@@ -47,14 +47,19 @@ async def _download_audio(audio_path: str) -> bytes:
 
     # 2. If it's a local file path
     if os.path.exists(audio_path):
+
         def _read_local():
             with open(audio_path, "rb") as f:
                 return f.read()
+
         return await asyncio.to_thread(_read_local)
 
     # 3. Try to construct Supabase Storage URL from DATABASE_URL
     project_ref = None
-    if "supabase.com" in settings.DATABASE_URL or "supabase.co" in settings.DATABASE_URL:
+    if (
+        "supabase.com" in settings.DATABASE_URL
+        or "supabase.co" in settings.DATABASE_URL
+    ):
         try:
             parsed = urllib.parse.urlparse(settings.DATABASE_URL)
             username = parsed.username
@@ -66,7 +71,7 @@ async def _download_audio(audio_path: str) -> bytes:
     if project_ref:
         path_clean = audio_path
         if path_clean.startswith("recordings/"):
-            path_clean = path_clean[len("recordings/"):]
+            path_clean = path_clean[len("recordings/") :]
 
         encoded_path = urllib.parse.quote(path_clean)
         supabase_url = f"https://{project_ref}.supabase.co/storage/v1/object/public/recordings/{encoded_path}"
@@ -76,7 +81,9 @@ async def _download_audio(audio_path: str) -> bytes:
             if res.status_code == 200:
                 return res.content
 
-    raise FileNotFoundError(f"Audio file not found or could not be downloaded: {audio_path}")
+    raise FileNotFoundError(
+        f"Audio file not found or could not be downloaded: {audio_path}"
+    )
 
 
 def jittered_backoff(attempts: int) -> float:
@@ -96,7 +103,9 @@ def is_terminal_error(err: Exception) -> bool:
     err_msg = str(err)
     if "401" in err_msg or "API_KEY_INVALID" in err_msg:
         return True
-    if isinstance(err, (ValueError, KeyError, TypeError, AttributeError, AssertionError)):
+    if isinstance(
+        err, (ValueError, KeyError, TypeError, AttributeError, AssertionError)
+    ):
         return True
     return False
 
@@ -171,26 +180,36 @@ async def _run_start_step(
     await db.commit()
 
     res = await db.execute(
-        text("SELECT id, user_id, audio_path, storage_provider, duration_seconds FROM public.meetings WHERE id = :id"),
+        text(
+            "SELECT id, user_id, audio_path, storage_provider, duration_seconds FROM public.meetings WHERE id = :id"
+        ),
         {"id": meeting_id},
     )
     meeting = res.mappings().first()
     if not meeting:
         # Restart case: meeting is already processing
         res = await db.execute(
-            text("SELECT id, user_id, audio_path, storage_provider, duration_seconds FROM public.meetings WHERE id = :id AND status = 'processing'"),
+            text(
+                "SELECT id, user_id, audio_path, storage_provider, duration_seconds FROM public.meetings WHERE id = :id AND status = 'processing'"
+            ),
             {"id": meeting_id},
         )
         meeting = res.mappings().first()
         if not meeting:
-            logger.info(f"[jobs/start] {meeting_id}: meeting not claimable, marking job done")
+            logger.info(
+                f"[jobs/start] {meeting_id}: meeting not claimable, marking job done"
+            )
             await db.execute(
-                text("UPDATE public.jobs SET status = 'done', locked_at = NULL, locked_by = NULL WHERE id = :id"),
+                text(
+                    "UPDATE public.jobs SET status = 'done', locked_at = NULL, locked_by = NULL WHERE id = :id"
+                ),
                 {"id": job_id},
             )
             await db.commit()
             return
-        logger.info(f"[jobs/start] {meeting_id}: restart detected — meeting already in processing, continuing")
+        logger.info(
+            f"[jobs/start] {meeting_id}: restart detected — meeting already in processing, continuing"
+        )
 
     audio_path = meeting["audio_path"]
     user_id = str(meeting["user_id"]) if meeting["user_id"] else None
@@ -212,8 +231,11 @@ async def _run_start_step(
         def _write_temp():
             with open(tmp_audio_path, "wb") as f:
                 f.write(audio_bytes)
+
         await asyncio.to_thread(_write_temp)
-        logger.info(f"[jobs/start] {meeting_id}: wrote {len(audio_bytes)} bytes to {tmp_audio_path}")
+        logger.info(
+            f"[jobs/start] {meeting_id}: wrote {len(audio_bytes)} bytes to {tmp_audio_path}"
+        )
 
         # Quota Pre-flight
         estimate_seconds = 0
@@ -224,7 +246,9 @@ async def _run_start_step(
                 probed = await get_audio_duration_seconds(tmp_audio_path)
             except Exception:
                 probed = 0
-            estimate_seconds = math.ceil(probed if probed > 0 else (meeting["duration_seconds"] or 0))
+            estimate_seconds = math.ceil(
+                probed if probed > 0 else (meeting["duration_seconds"] or 0)
+            )
 
             if estimate_seconds > 0:
                 reserve = await apply_quota_movement(
@@ -247,11 +271,15 @@ async def _run_start_step(
                         f"Required: {estimate_seconds}s, remaining: {reserve.audio_remaining}s."
                     )
                     await db.execute(
-                        text("UPDATE public.meetings SET status = 'failed', error_message = :msg WHERE id = :id"),
+                        text(
+                            "UPDATE public.meetings SET status = 'failed', error_message = :msg WHERE id = :id"
+                        ),
                         {"msg": msg, "id": meeting_id},
                     )
                     await db.execute(
-                        text("UPDATE public.jobs SET status = 'failed', last_error = :msg, locked_at = NULL, locked_by = NULL WHERE id = :id"),
+                        text(
+                            "UPDATE public.jobs SET status = 'failed', last_error = :msg, locked_at = NULL, locked_by = NULL WHERE id = :id"
+                        ),
                         {"msg": msg, "id": job_id},
                     )
                     await db.commit()
@@ -266,12 +294,14 @@ async def _run_start_step(
                             "id": str(uuid.uuid4()),
                             "user_id": user_id,
                             "meeting_id": meeting_id,
-                            "metadata": json.dumps({
-                                "reason": "quota_blocked",
-                                "required_seconds": estimate_seconds,
-                                "remaining_seconds": reserve.audio_remaining
-                            })
-                        }
+                            "metadata": json.dumps(
+                                {
+                                    "reason": "quota_blocked",
+                                    "required_seconds": estimate_seconds,
+                                    "remaining_seconds": reserve.audio_remaining,
+                                }
+                            ),
+                        },
                     )
                     await db.commit()
                     return
@@ -282,10 +312,14 @@ async def _run_start_step(
         if not tmp_audio_path.lower().endswith(".mp3"):
             tmp_transcode_dir = tempfile.mkdtemp(prefix="sm-transcode-")
             try:
-                job_audio_path = await transcode_to_mp3(tmp_audio_path, tmp_transcode_dir)
+                job_audio_path = await transcode_to_mp3(
+                    tmp_audio_path, tmp_transcode_dir
+                )
                 logger.info(f"[jobs/start] {meeting_id}: transcoded to MP3")
             except Exception as e:
-                logger.warning(f"[jobs/start] {meeting_id}: ffmpeg transcode failed, using original — {e}")
+                logger.warning(
+                    f"[jobs/start] {meeting_id}: ffmpeg transcode failed, using original — {e}"
+                )
                 job_audio_path = tmp_audio_path
                 if os.path.exists(tmp_transcode_dir):
                     shutil.rmtree(tmp_transcode_dir, ignore_errors=True)
@@ -296,7 +330,9 @@ async def _run_start_step(
         speechmatics_job_id = await asyncio.to_thread(
             submit_speechmatics_job, job_audio_path, speaker_count
         )
-        logger.info(f"[jobs/start] {meeting_id}: Speechmatics job submitted: {speechmatics_job_id}")
+        logger.info(
+            f"[jobs/start] {meeting_id}: Speechmatics job submitted: {speechmatics_job_id}"
+        )
 
         # Advance to transcribe_poll
         next_payload = {
@@ -346,9 +382,13 @@ async def _run_transcribe_poll_step(
     if not speechmatics_job_id:
         raise ValueError("transcribe_poll: missing speechmatics_job_id in payload")
 
-    logger.info(f"[jobs/transcribe_poll] {meeting_id}: checking job {speechmatics_job_id}")
+    logger.info(
+        f"[jobs/transcribe_poll] {meeting_id}: checking job {speechmatics_job_id}"
+    )
 
-    status_data = await asyncio.to_thread(get_speechmatics_job_status, speechmatics_job_id)
+    status_data = await asyncio.to_thread(
+        get_speechmatics_job_status, speechmatics_job_id
+    )
     status = status_data.get("job", {}).get("status")
     errors = status_data.get("job", {}).get("errors", [])
     logger.info(f"[jobs/transcribe_poll] {meeting_id}: Speechmatics status={status}")
@@ -370,10 +410,14 @@ async def _run_transcribe_poll_step(
 
     # Case B: Done
     if status == "done":
-        transcript_data = await asyncio.to_thread(fetch_speechmatics_transcript, speechmatics_job_id)
+        transcript_data = await asyncio.to_thread(
+            fetch_speechmatics_transcript, speechmatics_job_id
+        )
         transcript = transcript_data["transcript"]
         audio_seconds = transcript_data["audio_seconds"]
-        logger.info(f"[jobs/transcribe_poll] {meeting_id}: transcript done — {len(transcript['segments'])} segments, language={transcript['language']}")
+        logger.info(
+            f"[jobs/transcribe_poll] {meeting_id}: transcript done — {len(transcript['segments'])} segments, language={transcript['language']}"
+        )
 
         # Settle quota
         user_id = payload.get("user_id")
@@ -389,15 +433,24 @@ async def _run_transcribe_poll_step(
                     dedup_key=f"gen:{meeting_id}:settle",
                     allow_overdraw=True,
                     meeting_id=meeting_id,
-                    metadata={"estimate_seconds": estimate_seconds, "real_seconds": audio_seconds},
+                    metadata={
+                        "estimate_seconds": estimate_seconds,
+                        "real_seconds": audio_seconds,
+                    },
                 ),
             )
 
         settled_payload = {**payload, "transcription_settled": True}
 
         # Clear prior segments & chunks to avoid duplicates (REL-03)
-        await db.execute(text("DELETE FROM public.transcript_chunks WHERE meeting_id = :id"), {"id": meeting_id})
-        await db.execute(text("DELETE FROM public.transcript_segments WHERE meeting_id = :id"), {"id": meeting_id})
+        await db.execute(
+            text("DELETE FROM public.transcript_chunks WHERE meeting_id = :id"),
+            {"id": meeting_id},
+        )
+        await db.execute(
+            text("DELETE FROM public.transcript_segments WHERE meeting_id = :id"),
+            {"id": meeting_id},
+        )
         await db.commit()
 
         # Empty transcript: audio was silent
@@ -432,8 +485,8 @@ async def _run_transcribe_poll_step(
                         "id": str(uuid.uuid4()),
                         "user_id": user_id,
                         "meeting_id": meeting_id,
-                        "metadata": json.dumps({"empty_transcript": True})
-                    }
+                        "metadata": json.dumps({"empty_transcript": True}),
+                    },
                 )
                 await db.commit()
             return
@@ -484,7 +537,9 @@ async def _run_transcribe_poll_step(
         is_lang_fail = LANG_DETECT_FAIL in err_msg
 
         if is_lang_fail and not payload.get("lang_retry"):
-            logger.info(f"[jobs/transcribe_poll] {meeting_id}: language auto-detect rejected — retrying with language=en")
+            logger.info(
+                f"[jobs/transcribe_poll] {meeting_id}: language auto-detect rejected — retrying with language=en"
+            )
 
             # Re-download and resubmit
             res = await db.execute(
@@ -493,7 +548,9 @@ async def _run_transcribe_poll_step(
             )
             mtg = res.mappings().first()
             if not mtg or not mtg["audio_path"]:
-                raise ValueError("transcribe_poll: cannot retry lang — missing audio_path")
+                raise ValueError(
+                    "transcribe_poll: cannot retry lang — missing audio_path"
+                )
 
             tmp_audio_path = None
             tmp_transcode_dir = None
@@ -508,13 +565,16 @@ async def _run_transcribe_poll_step(
                 def _write_temp():
                     with open(tmp_audio_path, "wb") as f:
                         f.write(audio_bytes)
+
                 await asyncio.to_thread(_write_temp)
 
                 job_audio_path = tmp_audio_path
                 if not tmp_audio_path.lower().endswith(".mp3"):
                     tmp_transcode_dir = tempfile.mkdtemp(prefix="sm-lang-")
                     try:
-                        job_audio_path = await transcode_to_mp3(tmp_audio_path, tmp_transcode_dir)
+                        job_audio_path = await transcode_to_mp3(
+                            tmp_audio_path, tmp_transcode_dir
+                        )
                     except Exception:
                         job_audio_path = tmp_audio_path
                         if os.path.exists(tmp_transcode_dir):
@@ -522,9 +582,14 @@ async def _run_transcribe_poll_step(
                         tmp_transcode_dir = None
 
                 new_job_id = await asyncio.to_thread(
-                    submit_speechmatics_job, job_audio_path, payload.get("speaker_count"), "en"
+                    submit_speechmatics_job,
+                    job_audio_path,
+                    payload.get("speaker_count"),
+                    "en",
                 )
-                logger.info(f"[jobs/transcribe_poll] {meeting_id}: resubmitted with language=en: {new_job_id}")
+                logger.info(
+                    f"[jobs/transcribe_poll] {meeting_id}: resubmitted with language=en: {new_job_id}"
+                )
 
                 retry_payload = {
                     **payload,
@@ -561,10 +626,14 @@ async def _run_transcribe_poll_step(
                     except Exception:
                         pass
 
-        raise RuntimeError(f"Speechmatics job {speechmatics_job_id} rejected: {err_msg}")
+        raise RuntimeError(
+            f"Speechmatics job {speechmatics_job_id} rejected: {err_msg}"
+        )
 
     # Case D: Deleted / Other
-    raise RuntimeError(f"Speechmatics job {speechmatics_job_id} was unexpectedly in status: {status}")
+    raise RuntimeError(
+        f"Speechmatics job {speechmatics_job_id} was unexpectedly in status: {status}"
+    )
 
 
 async def _run_analyse_step(
@@ -582,7 +651,9 @@ async def _run_analyse_step(
     )
     seg_rows = res.mappings().all()
     if not seg_rows:
-        raise ValueError(f"analyse: no transcript_segments found for meeting {meeting_id}")
+        raise ValueError(
+            f"analyse: no transcript_segments found for meeting {meeting_id}"
+        )
 
     segment_id_by_index = {r["segment_index"]: str(r["id"]) for r in seg_rows}
 
@@ -604,12 +675,18 @@ async def _run_analyse_step(
         {"id": meeting_id},
     )
     meeting = res_mtg.mappings().first()
-    started_at = meeting["started_at"].isoformat() if meeting and meeting["started_at"] else None
+    started_at = (
+        meeting["started_at"].isoformat() if meeting and meeting["started_at"] else None
+    )
 
     # Call Gemini Flash analysis
-    logger.info(f"[jobs/analyse] {meeting_id}: calling Gemini with {len(seg_rows)} segments")
+    logger.info(
+        f"[jobs/analyse] {meeting_id}: calling Gemini with {len(seg_rows)} segments"
+    )
     analysis = await analyze_transcript(segments, meeting_date=started_at)
-    logger.info(f"[jobs/analyse] {meeting_id}: done — {len(analysis.todos)} todos, {len(analysis.calendar_suggestions)} suggestions")
+    logger.info(
+        f"[jobs/analyse] {meeting_id}: done — {len(analysis.todos)} todos, {len(analysis.calendar_suggestions)} suggestions"
+    )
 
     if not analysis.summary and not analysis.notes_markdown:
         raise ValueError("Gemini analysis returned empty summary and notes.")
@@ -629,8 +706,13 @@ async def _run_analyse_step(
     )
 
     # REL-03: clear prior todos & calendar suggestions to prevent duplicates
-    await db.execute(text("DELETE FROM public.todos WHERE meeting_id = :id"), {"id": meeting_id})
-    await db.execute(text("DELETE FROM public.calendar_suggestions WHERE meeting_id = :id"), {"id": meeting_id})
+    await db.execute(
+        text("DELETE FROM public.todos WHERE meeting_id = :id"), {"id": meeting_id}
+    )
+    await db.execute(
+        text("DELETE FROM public.calendar_suggestions WHERE meeting_id = :id"),
+        {"id": meeting_id},
+    )
     await db.commit()
 
     # Insert todos
@@ -705,7 +787,9 @@ async def _run_embed_step(
     )
     seg_rows = res.mappings().all()
     if not seg_rows:
-        raise ValueError(f"embed: no transcript_segments found for meeting {meeting_id}")
+        raise ValueError(
+            f"embed: no transcript_segments found for meeting {meeting_id}"
+        )
 
     segments = [
         {
@@ -727,7 +811,10 @@ async def _run_embed_step(
         vectors = await generate_embeddings([c["content"] for c in chunks])
 
         # REL-03: delete prior chunks before inserting
-        await db.execute(text("DELETE FROM public.transcript_chunks WHERE meeting_id = :id"), {"id": meeting_id})
+        await db.execute(
+            text("DELETE FROM public.transcript_chunks WHERE meeting_id = :id"),
+            {"id": meeting_id},
+        )
         await db.commit()
 
         # Insert chunks
@@ -768,18 +855,22 @@ async def _run_embed_step(
                 "id": str(uuid.uuid4()),
                 "user_id": user_id,
                 "meeting_id": meeting_id,
-            }
+            },
         )
 
     # Close job
     await db.execute(
-        text("UPDATE public.jobs SET status = 'done', locked_at = NULL, locked_by = NULL WHERE id = :id"),
+        text(
+            "UPDATE public.jobs SET status = 'done', locked_at = NULL, locked_by = NULL WHERE id = :id"
+        ),
         {"id": job_id},
     )
     await db.commit()
 
 
-async def handle_job_error(db: AsyncSession, job: Dict[str, Any], err: Exception) -> None:
+async def handle_job_error(
+    db: AsyncSession, job: Dict[str, Any], err: Exception
+) -> None:
     job_id = str(job["id"])
     meeting_id = str(job["meeting_id"])
     payload = job.get("payload") or {}
@@ -834,7 +925,12 @@ async def handle_job_error(db: AsyncSession, job: Dict[str, Any], err: Exception
     # QUO-02: refund reserved quota if transcription never settled
     user_id = payload.get("user_id")
     estimate_seconds = payload.get("estimate_seconds") or 0
-    if payload.get("reserve_done") and not payload.get("transcription_settled") and user_id and estimate_seconds > 0:
+    if (
+        payload.get("reserve_done")
+        and not payload.get("transcription_settled")
+        and user_id
+        and estimate_seconds > 0
+    ):
         try:
             await apply_quota_movement(
                 db,
@@ -847,14 +943,16 @@ async def handle_job_error(db: AsyncSession, job: Dict[str, Any], err: Exception
                     allow_overdraw=False,
                     meeting_id=meeting_id,
                     metadata={"reason": "pipeline_failure", "error": message[:200]},
-                )
+                ),
             )
         except Exception as e:
             logger.error(f"[worker] quota refund failed (non-fatal): {e}")
 
     # Mark meeting as failed
     await db.execute(
-        text("UPDATE public.meetings SET status = 'failed', error_message = :err WHERE id = :id"),
+        text(
+            "UPDATE public.meetings SET status = 'failed', error_message = :err WHERE id = :id"
+        ),
         {"err": message[:500], "id": meeting_id},
     )
     await db.commit()
@@ -869,8 +967,8 @@ async def handle_job_error(db: AsyncSession, job: Dict[str, Any], err: Exception
                 "id": str(uuid.uuid4()),
                 "user_id": user_id,
                 "meeting_id": meeting_id,
-                "metadata": json.dumps({"error": message[:200]})
-            }
+                "metadata": json.dumps({"error": message[:200]}),
+            },
         )
         await db.commit()
 
@@ -883,8 +981,10 @@ async def sweep_stuck_jobs(db: AsyncSession) -> None:
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=STUCK_THRESHOLD_SECONDS)
 
     res = await db.execute(
-        text("SELECT * FROM public.jobs WHERE status = 'running' AND locked_at < :cutoff"),
-        {"cutoff": cutoff}
+        text(
+            "SELECT * FROM public.jobs WHERE status = 'running' AND locked_at < :cutoff"
+        ),
+        {"cutoff": cutoff},
     )
     stuck = res.mappings().all()
 
@@ -894,7 +994,9 @@ async def sweep_stuck_jobs(db: AsyncSession) -> None:
         meeting_id = str(job["meeting_id"])
         new_attempts = (job.get("attempts") or 0) + 1
         max_attempts = job.get("max_attempts") or 8
-        logger.warning(f"[worker] sweeper found stuck job {job_id} step={job['step']} locked_at={job['locked_at']}")
+        logger.warning(
+            f"[worker] sweeper found stuck job {job_id} step={job['step']} locked_at={job['locked_at']}"
+        )
 
         if new_attempts >= max_attempts:
             err_msg = "Job timed out (stuck in running state — server may have restarted mid-step)"
@@ -915,11 +1017,15 @@ async def sweep_stuck_jobs(db: AsyncSession) -> None:
                 """),
                 {"id": meeting_id},
             )
-            logger.error(f"[worker] sweeper: terminated job {job_id} (max attempts reached)")
+            logger.error(
+                f"[worker] sweeper: terminated job {job_id} (max attempts reached)"
+            )
         else:
             if job["step"] == "start":
                 await db.execute(
-                    text("UPDATE public.meetings SET status = 'pending' WHERE id = :id"),
+                    text(
+                        "UPDATE public.meetings SET status = 'pending' WHERE id = :id"
+                    ),
                     {"id": meeting_id},
                 )
             await db.execute(
@@ -936,7 +1042,9 @@ async def sweep_stuck_jobs(db: AsyncSession) -> None:
                     "id": job_id,
                 },
             )
-            logger.info(f"[worker] sweeper: requeued job {job_id} step={job['step']} (attempt {new_attempts}/{max_attempts})")
+            logger.info(
+                f"[worker] sweeper: requeued job {job_id} step={job['step']} (attempt {new_attempts}/{max_attempts})"
+            )
     await db.commit()
 
 
@@ -951,7 +1059,9 @@ async def run_worker_loop():
     RECONCILE_INTERVAL_SECONDS = 5 * 60
 
     next_sweep_at = datetime.now(timezone.utc) + timedelta(seconds=STUCK_SWEEP_SECONDS)
-    next_reconcile_at = datetime.now(timezone.utc) + timedelta(seconds=RECONCILE_INTERVAL_SECONDS)
+    next_reconcile_at = datetime.now(timezone.utc) + timedelta(
+        seconds=RECONCILE_INTERVAL_SECONDS
+    )
 
     while True:
         now = datetime.now(timezone.utc)
@@ -963,7 +1073,9 @@ async def run_worker_loop():
                     await sweep_stuck_jobs(db)
             except Exception as e:
                 logger.error(f"[worker] sweeper error: {e}")
-            next_sweep_at = datetime.now(timezone.utc) + timedelta(seconds=STUCK_SWEEP_SECONDS)
+            next_sweep_at = datetime.now(timezone.utc) + timedelta(
+                seconds=STUCK_SWEEP_SECONDS
+            )
 
         # 2. QUO-04: ledger-wallet reconciliation
         if now >= next_reconcile_at:
@@ -972,7 +1084,9 @@ async def run_worker_loop():
                     await reconcile_wallets(db)
             except Exception as e:
                 logger.error(f"[wallet-reconcile] loop error: {e}")
-            next_reconcile_at = datetime.now(timezone.utc) + timedelta(seconds=RECONCILE_INTERVAL_SECONDS)
+            next_reconcile_at = datetime.now(timezone.utc) + timedelta(
+                seconds=RECONCILE_INTERVAL_SECONDS
+            )
 
         # 3. Claim and execute next job
         job = None
@@ -981,7 +1095,9 @@ async def run_worker_loop():
                 job = await claim_next_job(db, worker_id)
                 if job:
                     try:
-                        logger.info(f"[worker] executing job {job['id']} step={job['step']} attempt={job.get('attempts', 0)} meeting={job['meeting_id']}")
+                        logger.info(
+                            f"[worker] executing job {job['id']} step={job['step']} attempt={job.get('attempts', 0)} meeting={job['meeting_id']}"
+                        )
                         await execute_job_step(db, job)
                     except Exception as err:
                         await handle_job_error(db, job, err)
