@@ -49,7 +49,9 @@ class GeminiKeyPool:
     def __init__(self, keys: List[str]):
         if not keys:
             keys = [settings.GEMINI_API_KEY]
-        self.keys = [KeyState(k.strip(), i + 1) for i, k in enumerate(keys) if k.strip()]
+        self.keys = [
+            KeyState(k.strip(), i + 1) for i, k in enumerate(keys) if k.strip()
+        ]
 
     def _next_key(self) -> Optional[KeyState]:
         now = time.time()
@@ -80,20 +82,32 @@ class GeminiKeyPool:
                 last_err = err
                 err_msg = str(err)
 
-                if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "quota" in err_msg.lower():
+                if (
+                    "429" in err_msg
+                    or "RESOURCE_EXHAUSTED" in err_msg
+                    or "quota" in err_msg.lower()
+                ):
                     key_state.cooldown_until = time.time() + 60.0
                     key_state.consecutive_failures += 1
-                    logger.warning(f"Gemini Key #{key_state.index} rate-limited. Cooling down 60s.")
+                    logger.warning(
+                        f"Gemini Key #{key_state.index} rate-limited. Cooling down 60s."
+                    )
                 elif "401" in err_msg or "API_KEY_INVALID" in err_msg:
                     key_state.disabled = True
-                    logger.warning(f"Gemini Key #{key_state.index} disabled due to 401 invalid key.")
+                    logger.warning(
+                        f"Gemini Key #{key_state.index} disabled due to 401 invalid key."
+                    )
                 else:
                     key_state.consecutive_failures += 1
-                    logger.warning(f"Gemini Key #{key_state.index} error: {err_msg[:120]}")
+                    logger.warning(
+                        f"Gemini Key #{key_state.index} error: {err_msg[:120]}"
+                    )
 
-                await asyncio.sleep(min(0.5 * (2 ** attempt), 8.0))
+                await asyncio.sleep(min(0.5 * (2**attempt), 8.0))
 
-        raise RuntimeError(f"All Gemini API keys exhausted after {max_attempts} attempts. Last error: {last_err}")
+        raise RuntimeError(
+            f"All Gemini API keys exhausted after {max_attempts} attempts. Last error: {last_err}"
+        )
 
 
 # Initialize singleton key pool
@@ -107,16 +121,20 @@ async def analyze_transcript(
     Analyze transcript segments using Gemini Flash structured output.
     """
     if not segments:
-        return AnalysisResult(summary="", notes_markdown="", todos=[], calendar_suggestions=[])
+        return AnalysisResult(
+            summary="", notes_markdown="", todos=[], calendar_suggestions=[]
+        )
 
     transcript_text = "\n".join(
         [
-            f"[{i}] {s.get('speaker', 'Speaker')} ({(s.get('start_ms', 0)/1000.0):.1f}s): {s.get('text', '')}"
+            f"[{i}] {s.get('speaker', 'Speaker')} ({(s.get('start_ms', 0) / 1000.0):.1f}s): {s.get('text', '')}"
             for i, s in enumerate(segments)
         ]
     )
 
-    date_line = f"MEETING_DATE: {meeting_date}" if meeting_date else "MEETING_DATE: (unknown)"
+    date_line = (
+        f"MEETING_DATE: {meeting_date}" if meeting_date else "MEETING_DATE: (unknown)"
+    )
     prompt = f"{date_line}\n\nTRANSCRIPT (prefixed with 0-based segment index [N]):\n{transcript_text}"
 
     system_instruction = (
@@ -144,20 +162,22 @@ async def analyze_transcript(
 async def generate_embeddings(texts: List[str]) -> List[List[float]]:
     """
     Generate text embeddings using Gemini embedding model.
+    Optimized to batch requests in a single call.
     """
     if not texts:
         return []
 
     async def _execute(client: genai.Client):
-        embeddings = []
-        for text_item in texts:
-            res = await asyncio.to_thread(
-                client.models.embed_content,
-                model=EMBEDDING_MODEL,
-                contents=text_item,
-            )
-            embeddings.append(res.embedding.values)
-        return embeddings
+        res = await asyncio.to_thread(
+            client.models.embed_content,
+            model=EMBEDDING_MODEL,
+            contents=texts,
+        )
+        if hasattr(res, "embeddings") and res.embeddings:
+            return [emb.values for emb in res.embeddings]
+        elif hasattr(res, "embedding") and res.embedding:
+            return [res.embedding.values]
+        return []
 
     return await gemini_pool.call(_execute)
 

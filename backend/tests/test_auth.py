@@ -96,7 +96,9 @@ def test_register_email_already_exists():
     mock_result_email = MagicMock()
     mock_result_email.scalars().first.return_value = mock_existing_user
 
-    mock_db.execute.side_effect = [mock_result_email]
+    mock_result_username = MagicMock()
+    mock_result_username.scalars().first.return_value = None
+    mock_db.execute.side_effect = [mock_result_email, mock_result_username]
 
     payload = {
         "email": "existing@example.com",
@@ -194,14 +196,10 @@ def test_login_with_username_whitebox():
 
     mock_user.profile = mock_profile
 
-    mock_result_profile_by_username = MagicMock()
-    mock_result_profile_by_username.scalars().first.return_value = mock_profile
-
     mock_result_user = MagicMock()
     mock_result_user.scalars().first.return_value = mock_user
 
     mock_db.execute.side_effect = [
-        mock_result_profile_by_username,
         mock_result_user,
     ]
 

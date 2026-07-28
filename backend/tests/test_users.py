@@ -81,7 +81,7 @@ def test_list_users_as_admin_success():
     mock_user.profile = mock_profile
 
     mock_result_users = MagicMock()
-    mock_result_users.scalars().all.return_value = [mock_user]
+    mock_result_users.scalars().unique.return_value.all.return_value = [mock_user]
 
     mock_db.execute.side_effect = [mock_result_users]
 
@@ -183,7 +183,7 @@ def test_list_users_as_admin_role_filtering_whitebox():
     mock_admin_user.profile = mock_admin_profile
 
     mock_result_users = MagicMock()
-    mock_result_users.scalars().all.return_value = [mock_admin_user]
+    mock_result_users.scalars().unique.return_value.all.return_value = [mock_admin_user]
 
     mock_db.execute.side_effect = [mock_result_users]
 

@@ -111,7 +111,9 @@ def test_e2e_user_journey_flow():
     mock_admin_auth_user = MagicMock()
     mock_admin_auth_user.scalars().first.return_value = admin_user
     mock_admin_list_users = MagicMock()
-    mock_admin_list_users.scalars().all.return_value = [regular_user]
+    mock_admin_list_users.scalars().unique.return_value.all.return_value = [
+        regular_user
+    ]
 
     # Apply mock execution side effects sequence
     mock_db.execute.side_effect = [
