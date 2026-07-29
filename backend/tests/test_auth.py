@@ -288,3 +288,34 @@ def test_logout_deletes_cookies():
         response.cookies.get("access_token") is None
         or response.cookies.get("access_token") == ""
     )
+
+
+def test_bearer_token_authorization_header():
+    mock_db.reset_mock()
+
+    mock_user = MagicMock()
+    mock_user.id = "user-id-bearer"
+    mock_user.email = "bearer@example.com"
+
+    mock_profile = MagicMock()
+    mock_profile.id = "user-id-bearer"
+    mock_profile.username = "beareruser"
+    mock_profile.role = "user"
+    mock_user.profile = mock_profile
+
+    mock_result_user = MagicMock()
+    mock_result_user.scalars().first.return_value = mock_user
+
+    mock_result_projects = MagicMock()
+    mock_result_projects.scalars().all.return_value = []
+
+    mock_db.execute.side_effect = [mock_result_user, mock_result_projects]
+
+    token = create_access_token("user-id-bearer")
+
+    # Test passing Bearer token in Authorization header (without cookies)
+    response = client.get(
+        "/projects",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200

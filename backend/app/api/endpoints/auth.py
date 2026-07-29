@@ -188,6 +188,11 @@ async def refresh_token(
         token_str = payload.refresh_token
 
     if not token_str:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token_str = auth_header[7:].strip()
+
+    if not token_str:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token missing",

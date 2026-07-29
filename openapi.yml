@@ -99,6 +99,7 @@ paths:
       operationId: list_users_admin_users_get
       security:
         - HTTPBearer: []
+        - CookieAuth: []
       parameters:
         - name: skip
           in: query
@@ -157,6 +158,7 @@ paths:
       operationId: get_user_detail_admin_users__id__get
       security:
         - HTTPBearer: []
+        - CookieAuth: []
       parameters:
         - name: id
           in: path
@@ -186,6 +188,7 @@ paths:
       operationId: list_user_projects_projects_get
       security:
         - HTTPBearer: []
+        - CookieAuth: []
       parameters:
         - name: skip
           in: query
@@ -228,6 +231,7 @@ paths:
       operationId: move_quota_quota_movement_post
       security:
         - HTTPBearer: []
+        - CookieAuth: []
       responses:
         "200":
           description: Successful Response
@@ -239,6 +243,7 @@ paths:
       operationId: reconcile_quota_admin_pipeline_reconcile_quota_post
       security:
         - HTTPBearer: []
+        - CookieAuth: []
       responses:
         "200":
           description: Successful Response
@@ -250,6 +255,7 @@ paths:
       operationId: ask_meeting_question_meetings__id__ask_post
       security:
         - HTTPBearer: []
+        - CookieAuth: []
       parameters:
         - name: id
           in: path
@@ -568,3 +574,7 @@ components:
     HTTPBearer:
       type: http
       scheme: bearer
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
