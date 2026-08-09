@@ -1,0 +1,9 @@
+# Compose-level env file (POSTGRES_PASSWORD for variable substitution in
+# docker-compose.yml). Service-level secrets live in backend/.env, already
+# ignored by backend/.gitignore.
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db

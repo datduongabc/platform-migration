@@ -1,0 +1,139 @@
+<div class="min-h-screen bg-b-bg p-6 relative overflow-hidden font-sans flex flex-col">
+  <!-- Background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-35"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-25"
+    style="background: radial-gradient(circle, rgb(var(--t-primary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="max-w-3xl w-full mx-auto flex-grow flex flex-col z-10 relative">
+    <!-- Header -->
+    <div class="mb-6 flex-shrink-0">
+      <a
+        routerLink="/meetings"
+        class="inline-block text-sm font-semibold text-b-terra hover:underline mb-3"
+      >
+        ← Return to Meetings
+      </a>
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-serif font-bold text-b-fg">Meeting AI Chat</h1>
+          <p class="text-sm text-b-fg/60">
+            AI-powered Q&amp;A over your processed meeting transcripts. Click citation chips to view source.
+          </p>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] font-semibold text-b-fg/60 uppercase tracking-wide font-sans">Scope</label>
+          <select
+            [(ngModel)]="selectedFolderId"
+            (ngModelChange)="onScopeChange()"
+            [disabled]="chatLoading()"
+            class="px-4 py-2 rounded-2xl border border-b-border bg-white text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50 cursor-pointer"
+          >
+            <option value="">All meetings (global)</option>
+            @for (f of folders(); track f.id) {
+              <option [value]="f.id">{{ f.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="flex-grow bg-white border border-b-border rounded-3xl shadow-b-md flex flex-col overflow-hidden max-h-[70vh]">
+      <!-- Messages Feed -->
+      <div class="flex-grow p-6 overflow-y-auto space-y-4 flex flex-col min-h-0">
+        @if (messages().length === 0 && !chatLoading()) {
+          <div class="my-auto text-center p-8 text-b-fg/40 flex flex-col items-center gap-3">
+            <div class="h-14 w-14 rounded-2xl bg-b-clay border border-b-border flex items-center justify-center text-b-terra shadow-b-sm">
+              <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h3 class="font-serif text-lg font-bold text-b-fg">Start a global conversation</h3>
+            <p class="text-xs max-w-xs mx-auto leading-relaxed">
+              Ask questions like "What did we decide about the timeline?" or "Who is responsible for the marketing launch?"
+            </p>
+          </div>
+        } @else {
+          @for (m of messages(); track m.id + m.created_at) {
+            <div
+              class="max-w-[85%] rounded-2xl p-4 text-sm leading-relaxed flex flex-col gap-2 shadow-b-sm"
+              [class.self-end]="m.role === 'user'"
+              [class.bg-b-fg]="m.role === 'user'"
+              [class.text-white]="m.role === 'user'"
+              [class.self-start]="m.role === 'assistant'"
+              [class.bg-b-clay/40]="m.role === 'assistant'"
+              [class.text-b-fg]="m.role === 'assistant'"
+              [class.border]="m.role === 'assistant'"
+              [class.border-b-border/30]="m.role === 'assistant'"
+            >
+              <!-- Message content -->
+              <span [innerHTML]="renderMarkdown(m.content)"></span>
+
+              <!-- Citations chips -->
+              @if (m.citations && m.citations.length > 0) {
+                <div class="flex flex-wrap gap-1.5 mt-2 border-t border-b-border/20 pt-2">
+                  <span class="text-[10px] text-b-fg/40 font-bold uppercase tracking-wider block mr-1 self-center">Citations:</span>
+                  @for (c of m.citations; track c.chunk_id) {
+                    <button
+                      (click)="handleCitationClick(c)"
+                      class="px-2.5 py-1 rounded-lg bg-b-clay border border-b-border hover:bg-b-clay/80 text-[11px] text-b-fg font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-b-sm"
+                      title="Click to view meeting source"
+                    >
+                      <svg class="w-3 h-3 text-b-terra shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      <span>Meeting [{{ formatTime(c.start_ms) }}]</span>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+
+        <!-- AI Generating loading indicator -->
+        @if (chatLoading()) {
+          <div class="self-start bg-b-clay/20 border border-b-border/30 rounded-2xl p-4 text-xs text-b-fg/60 flex items-center gap-2">
+            <div class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-b-terra border-t-transparent"></div>
+            <span>AI is finding context and formulating answer...</span>
+          </div>
+        }
+
+        <!-- Error display -->
+        @if (chatError(); as err) {
+          <div class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs text-center font-medium font-sans">
+            {{ err }}
+          </div>
+        }
+      </div>
+
+      <!-- Bottom Chat Bar Input Form -->
+      <div class="border-t border-b-border p-4 bg-b-clay/10 flex-shrink-0">
+        <div class="flex gap-2">
+          <input
+            type="text"
+            [(ngModel)]="chatQuery"
+            placeholder="Type your question across all meetings..."
+            [disabled]="chatLoading()"
+            class="flex-grow px-4 py-3 rounded-2xl border border-b-border bg-white text-sm focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50 font-sans text-b-fg"
+            (keydown.enter)="sendMessage()"
+          />
+          <button
+            (click)="sendMessage()"
+            [disabled]="chatLoading() || !chatQuery.trim()"
+            class="px-6 py-3 bg-b-fg text-white text-xs font-bold rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all font-sans cursor-pointer"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

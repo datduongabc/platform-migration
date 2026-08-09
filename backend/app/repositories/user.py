@@ -1,0 +1,121 @@
+from uuid import UUID
+
+from app.models.user import Profile, User
+from sqlalchemy import or_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import contains_eager, joinedload
+
+
+class UserRepository:
+    @staticmethod
+    async def get_by_id(db: AsyncSession, user_id: UUID | str) -> User | None:
+        query = select(User).where(User.id == user_id)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
+    async def get_by_email(db: AsyncSession, email: str) -> User | None:
+        query = select(User).where(User.email == email)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
+    async def get_by_id_with_profile(
+        db: AsyncSession, user_id: UUID | str
+    ) -> User | None:
+        query = select(User).options(joinedload(User.profile)).where(User.id == user_id)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
+    async def get_by_email_with_profile(db: AsyncSession, email: str) -> User | None:
+        query = (
+            select(User).options(joinedload(User.profile)).where(User.email == email)
+        )
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
+    async def get_by_username_with_profile(
+        db: AsyncSession, username: str
+    ) -> User | None:
+        query = (
+            select(User)
+            .options(joinedload(User.profile))
+            .join(Profile)
+            .where(Profile.username == username)
+        )
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
+    async def list_users(
+        db: AsyncSession,
+        skip: int,
+        limit: int,
+        role: str | None = None,
+        search: str | None = None,
+    ) -> list[User]:
+        if role or search:
+            query = (
+                select(User).join(User.profile).options(contains_eager(User.profile))
+            )
+        else:
+            query = select(User).options(joinedload(User.profile))
+
+        if role:
+            query = query.where(Profile.role == role)
+
+        if search:
+            search_filter = f"%{search}%"
+            query = query.where(
+                or_(
+                    User.email.ilike(search_filter),
+                    Profile.username.ilike(search_filter),
+                    Profile.display_name.ilike(search_filter),
+                )
+            )
+        query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+        result = await db.execute(query)
+        return list(result.scalars().unique().all())
+
+    @staticmethod
+    async def create(
+        db: AsyncSession, user_id: UUID, email: str, encrypted_password: str
+    ) -> User:
+        user = User(id=user_id, email=email, encrypted_password=encrypted_password)
+        db.add(user)
+        return user
+
+
+class ProfileRepository:
+    @staticmethod
+    async def get_by_user_id(db: AsyncSession, user_id: UUID | str) -> Profile | None:
+        query = select(Profile).where(Profile.id == user_id)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
+    async def get_by_username(db: AsyncSession, username: str) -> Profile | None:
+        query = select(Profile).where(Profile.username == username)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
+    async def create(
+        db: AsyncSession, user_id: UUID, username: str, role: str = "user"
+    ) -> Profile:
+        try:
+            async with db.begin_nested():
+                profile = Profile(id=user_id, username=username, role=role)
+                db.add(profile)
+                await db.flush()
+                return profile
+        except Exception:
+            profile = await db.get(Profile, user_id)
+            if profile:
+                profile.username = username
+                profile.role = role
+                return profile
+            raise

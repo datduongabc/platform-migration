@@ -1,0 +1,463 @@
+<div class="min-h-screen bg-b-bg p-6 relative overflow-hidden font-sans">
+  <!-- Decorative background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-35"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  
+  <div class="max-w-5xl mx-auto z-10 relative">
+    <!-- Back to meetings -->
+    <a
+      routerLink="/meetings"
+      class="inline-flex items-center gap-1.5 text-xs text-b-fg/50 font-sans uppercase tracking-widest hover:text-b-terra transition-colors duration-300 mb-6"
+    >
+      ← All meetings
+    </a>
+
+    <!-- Loading State -->
+    @if (state() === 'loading') {
+      <div class="flex flex-col gap-4 mt-4">
+        <div class="h-9 w-2/3 rounded-2xl bg-b-clay animate-pulse"></div>
+        <div class="h-4 w-1/3 rounded-xl bg-b-clay animate-pulse"></div>
+        <div class="mt-4 h-24 rounded-3xl bg-b-clay animate-pulse"></div>
+        <div class="h-36 rounded-3xl bg-b-clay animate-pulse"></div>
+      </div>
+    }
+
+    <!-- Error State -->
+    @if (state() === 'error') {
+      <div class="mt-4 bg-red-50 border border-red-200 rounded-3xl px-5 py-4 text-sm text-red-700">
+        {{ errorMessage() }}
+      </div>
+    }
+
+    <!-- Inflight / Processing State -->
+    @if (state() === 'inflight') {
+      <div>
+        <div class="mb-4">
+          <h1 class="font-serif text-3xl font-bold text-b-fg leading-snug">{{ meeting()?.title }}</h1>
+          <p class="text-sm text-b-fg/50 mt-1">Created at {{ meeting()?.created_at | date:'medium' }}</p>
+        </div>
+        <div class="bg-white rounded-3xl border border-b-border text-center py-10 mt-4 shadow-sm">
+          <div
+            class="w-10 h-10 rounded-full border-2 border-b-border border-t-b-primary animate-spin mx-auto mb-4"
+          ></div>
+          <p class="font-serif text-lg font-semibold text-b-fg mb-1">
+            {{ meeting()?.status === 'pending' ? 'Queued for processing...' : 'Processing recording...' }}
+          </p>
+          <p class="text-sm text-b-fg/50 font-sans">
+            Transcribing audio and extracting notes — typically 30–90 seconds.
+          </p>
+        </div>
+      </div>
+    }
+
+    <!-- Failed State -->
+    @if (state() === 'failed') {
+      <div>
+        <div class="mb-4">
+          <h1 class="font-serif text-3xl font-bold text-b-fg leading-snug">{{ meeting()?.title }}</h1>
+          <p class="text-sm text-b-fg/50 mt-1">Created at {{ meeting()?.created_at | date:'medium' }}</p>
+        </div>
+        <div class="mt-4 bg-red-50 border border-red-200 rounded-3xl px-5 py-4 text-sm text-red-700 shadow-sm">
+          <p class="font-semibold mb-1">Processing failed</p>
+          @if (meeting()?.error_message) {
+            <p class="mb-3 opacity-80">{{ meeting()?.error_message }}</p>
+          }
+          <div class="flex items-center gap-3">
+            <button
+              (click)="rerunProcessing()"
+              [disabled]="actionBusy()"
+              class="px-4 py-2 bg-b-fg text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-60 transition-all cursor-pointer inline-flex items-center gap-1.5"
+            >
+              @if (!actionBusy()) {
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+              }
+              {{ actionBusy() ? 'Starting...' : 'Re-run processing' }}
+            </button>
+            <button
+              (click)="confirmDelete()"
+              [disabled]="actionBusy()"
+              class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-60 transition-all cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline -mt-0.5 mr-1">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              </svg>
+              Delete meeting
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Done View -->
+    @if (state() === 'done' && meeting(); as m) {
+      <div class="flex flex-col gap-6">
+        <!-- Header -->
+        <div class="bg-white rounded-3xl border border-b-border p-6 shadow-sm">
+          @if (editingTitle()) {
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                [(ngModel)]="titleDraft"
+                (keydown.enter)="saveTitle()"
+                (keydown.escape)="editingTitle.set(false)"
+                class="font-serif text-3xl font-bold text-b-fg bg-transparent border-b-2 border-b-primary outline-none flex-grow pb-1"
+                maxlength="200"
+              />
+              <button (click)="saveTitle()" class="btn-primary text-xs py-1 px-3">Save</button>
+              <button (click)="editingTitle.set(false)" class="px-3 py-1 text-xs border border-b-border rounded-xl text-b-fg/60">Cancel</button>
+            </div>
+          } @else {
+            <div class="group flex items-start justify-between gap-4">
+              <div>
+                <h1 class="font-serif text-3xl font-bold text-b-fg leading-snug">{{ m.title }}</h1>
+                <div class="flex flex-wrap items-center gap-2 text-xs text-b-fg/50 font-sans mt-2">
+                  <span>{{ m.created_at | date:'medium' }}</span>
+                  @if (m.duration_seconds != null) {
+                    <span>·</span>
+                    <span>{{ formatDuration(m.duration_seconds) }}</span>
+                  }
+                  @if (m.language) {
+                    <span>·</span>
+                    <span class="uppercase font-semibold">{{ m.language }}</span>
+                  }
+                  <span>·</span>
+                  <span class="px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-bold uppercase tracking-wider text-[10px] mr-1">
+                    {{ m.status }}
+                  </span>
+                  <span>·</span>
+                  <span class="text-xs text-b-fg/50 font-sans font-medium">Folder:</span>
+                  <select
+                    [ngModel]="m.folder_id"
+                    (change)="moveToFolder($any($event.target).value || null)"
+                    class="text-[10px] border border-b-border rounded-lg px-2 py-0.5 bg-b-clay/40 text-b-fg font-semibold focus:outline-none cursor-pointer"
+                  >
+                    <option [value]="null">Uncategorized</option>
+                    @for (f of folders(); track f.id) {
+                      <option [value]="f.id">{{ f.name }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <button
+                (click)="startEditingTitle()"
+                class="p-2 rounded-xl text-b-fg/30 hover:text-b-primary hover:bg-b-clay transition-colors"
+                title="Rename meeting"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                </svg>
+              </button>
+            </div>
+          }
+
+          <!-- Audio Player -->
+          @if (audioUrl()) {
+            <div class="mt-6 pt-6 border-t border-b-border/40">
+              <audio #audioPlayer [src]="audioUrl()" controls class="w-full focus:outline-none"></audio>
+            </div>
+          }
+
+          <!-- Toolbar actions -->
+          <div class="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-b-border/40 flex-wrap">
+            <button
+              (click)="togglePin()"
+              [disabled]="actionBusy()"
+              class="px-3.5 py-1.5 rounded-xl border border-b-border text-xs font-bold text-b-fg hover:bg-b-clay/20 transition-all flex items-center gap-1.5"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+              </svg>
+              {{ m.pinned_at ? 'Unpin' : 'Pin' }}
+            </button>
+            <div class="flex items-center gap-2">
+              <button
+                (click)="regenerateAnalysis()"
+                [disabled]="actionBusy() || regenLoading()"
+                class="px-3.5 py-1.5 rounded-xl border border-b-border text-xs font-bold text-b-fg hover:bg-b-clay/20 transition-all flex items-center gap-1.5"
+              >
+                @if (!regenLoading()) {
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+                  </svg>
+                }
+                {{ regenLoading() ? 'Regenerating...' : 'Regenerate analysis' }}
+              </button>
+              <button
+                (click)="confirmDelete()"
+                [disabled]="actionBusy()"
+                class="px-3.5 py-1.5 rounded-xl border border-red-200 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 transition-all flex items-center gap-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3-Column Layout: Summary & Notes, Todos/Suggestions, and Transcript -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Summary & Notes (2 Columns on large screens) -->
+          <div class="lg:col-span-2 flex flex-col gap-6">
+            <!-- Summary -->
+            <div class="bg-white rounded-3xl border border-b-border p-6 shadow-sm">
+              <h2 class="font-serif text-lg font-bold text-b-fg mb-3">Summary</h2>
+              <p class="text-sm text-b-fg/80 leading-relaxed font-sans">{{ m.summary || 'No summary available.' }}</p>
+            </div>
+
+            <!-- Notes -->
+            <div class="bg-white rounded-3xl border border-b-border p-6 shadow-sm">
+              <h2 class="font-serif text-lg font-bold text-b-fg mb-4">Structured Notes</h2>
+              @if (m.notes) {
+                <div class="prose max-w-none text-sm text-b-fg/95 leading-relaxed font-sans" [innerHTML]="renderedNotes()"></div>
+              } @else {
+                <p class="text-sm text-b-fg/50 font-sans italic">No structured notes available.</p>
+              }
+            </div>
+          </div>
+
+          <!-- Todos & Suggestions Side Panel -->
+          <div class="flex flex-col gap-6">
+            <!-- Todos List -->
+            <div class="bg-white rounded-3xl border border-b-border p-6 shadow-sm">
+              <h2 class="font-serif text-lg font-bold text-b-fg mb-3 flex items-center justify-between">
+                <span>Action Items</span>
+                <span class="text-xs font-sans font-normal text-b-fg/50">{{ activeTodos().length }} items</span>
+              </h2>
+              @if (activeTodos().length > 0) {
+                <ul class="flex flex-col gap-3.5 mt-2">
+                  @for (t of activeTodos(); track t.id) {
+                    <li class="flex items-start gap-2.5 text-sm group">
+                      <input
+                        type="checkbox"
+                        [checked]="t.status === 'done'"
+                        (change)="toggleTodo(t)"
+                        class="mt-1 h-4.5 w-4.5 rounded-lg border-b-border text-b-primary focus:ring-b-primary"
+                      />
+                      <div class="flex-grow">
+                        <p class="text-b-fg leading-snug" [class.line-through]="t.status === 'done'" [class.text-b-fg/50]="t.status === 'done'">
+                          {{ t.content }}
+                        </p>
+                        @if (t.assignee || t.due_date) {
+                          <div class="flex items-center gap-2 text-xs text-b-fg/40 mt-1 font-sans">
+                            @if (t.assignee) {
+                              <span class="inline-flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                </svg>
+                                {{ t.assignee }}
+                              </span>
+                            }
+                            @if (t.due_date) {
+                              <span class="inline-flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                </svg>
+                                {{ t.due_date | date:'mediumDate' }}
+                              </span>
+                            }
+                          </div>
+                        }
+                      </div>
+                      <button
+                        (click)="dismissTodo(t.id)"
+                        class="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-b-fg/30 hover:text-b-terra p-0.5"
+                        title="Dismiss todo"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="text-xs text-b-fg/40 font-sans italic py-2">No action items extracted.</p>
+              }
+            </div>
+
+            <!-- Calendar Suggestions -->
+            <div class="bg-white rounded-3xl border border-b-border p-6 shadow-sm">
+              <h2 class="font-serif text-lg font-bold text-b-fg mb-3">Calendar Mentions</h2>
+              @if (activeSuggestions().length > 0) {
+                <ul class="flex flex-col gap-4 mt-2">
+                  @for (s of activeSuggestions(); track s.id) {
+                    <li class="flex items-start justify-between gap-2.5 text-sm group">
+                      <div>
+                        <p class="font-semibold text-b-fg leading-tight">{{ s.title }}</p>
+                        @if (s.proposed_at) {
+                          <p class="text-xs text-b-primary font-medium mt-1 inline-flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                            </svg>
+                            {{ s.proposed_at | date:'medium' }}
+                          </p>
+                        } @else {
+                          <p class="text-xs text-b-fg/40 font-sans italic mt-1">No specific date proposed</p>
+                        }
+                        @if (s.raw_mention) {
+                          <p class="text-xs text-b-fg/50 mt-1 font-mono bg-b-clay/40 p-1.5 rounded-lg border border-b-border/30">
+                            &ldquo;{{ s.raw_mention }}&rdquo;
+                          </p>
+                        }
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        @if (s.proposed_at) {
+                          <button
+                            (click)="downloadIcs(s)"
+                            class="px-2 py-1 rounded bg-b-clay hover:bg-b-border text-[10px] font-bold text-b-fg uppercase tracking-wider transition-colors"
+                            title="Download calendar event"
+                          >
+                            ICS
+                          </button>
+                        }
+                        <button
+                          (click)="dismissSuggestion(s.id)"
+                          class="px-2 py-1 rounded border border-b-border hover:bg-b-clay text-[10px] text-b-fg/50 hover:text-b-terra transition-colors"
+                          title="Dismiss mention"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="text-xs text-b-fg/40 font-sans italic py-2">No calendar suggestions found.</p>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Transcript Section -->
+        <div class="bg-white rounded-3xl border border-b-border p-6 shadow-sm">
+          <h2 class="font-serif text-lg font-bold text-b-fg mb-4">Transcript</h2>
+          @if (m.segments && m.segments.length > 0) {
+            <div class="flex flex-col gap-5 max-h-[500px] overflow-y-auto pr-2 font-sans">
+              @for (seg of m.segments; track seg.id) {
+                <div class="flex gap-4 group">
+                  <!-- Diarized details -->
+                  <div class="w-24 shrink-0 text-xs font-semibold text-b-fg/60">
+                    <span class="block truncate font-medium text-b-primary">{{ seg.speaker || 'Speaker' }}</span>
+                    <button
+                      (click)="seekTo(seg.start_ms)"
+                      class="text-[10px] font-mono text-b-fg/40 hover:text-b-terra hover:underline block mt-0.5"
+                    >
+                      {{ formatTimeMs(seg.start_ms) }}
+                    </button>
+                  </div>
+                  <!-- Content -->
+                  <div class="text-sm text-b-fg leading-relaxed flex-grow">
+                    {{ seg.text }}
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="text-sm text-b-fg/50 font-sans italic">No transcript segments available.</p>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Floating Q&A Chat Trigger Button and Sidebar Panel -->
+@if (state() === 'done' && meeting(); as m) {
+  <button
+    (click)="toggleChat()"
+    class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-b-fg text-white flex items-center justify-center shadow-xl hover:opacity-95 transition-all duration-300"
+    [title]="chatOpen() ? 'Close Q&A' : 'Ask about meeting'"
+  >
+    @if (chatOpen()) {
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+      </svg>
+    } @else {
+      <!-- Speech bubble SVG -->
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-6 h-6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+      </svg>
+    }
+  </button>
+
+  <!-- Q&A Sidebar Panel -->
+  <div
+    class="fixed bottom-[88px] right-6 z-50 bg-white rounded-3xl border border-b-border overflow-hidden flex flex-col shadow-2xl transition-all duration-300 w-80 sm:w-96"
+    [class.opacity-100]="chatOpen()"
+    [class.scale-100]="chatOpen()"
+    [class.pointer-events-auto]="chatOpen()"
+    [class.opacity-0]="!chatOpen()"
+    [class.scale-95]="!chatOpen()"
+    [class.pointer-events-none]="!chatOpen()"
+    style="height: 480px;"
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-b-border bg-b-clay/50 shrink-0">
+      <div>
+        <p class="font-sans font-semibold text-sm text-b-fg leading-tight">Ask Meeting Assistant</p>
+        <p class="text-[10px] text-b-fg/40 uppercase tracking-wider font-bold">RAG Grounded Q&A</p>
+      </div>
+      <button (click)="chatOpen.set(false)" class="text-b-fg/40 hover:text-b-fg font-sans text-xs">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Messages list -->
+    <div class="flex-grow overflow-y-auto p-4 flex flex-col gap-3 scroll-smooth">
+      <div class="bg-b-clay/35 border border-b-border/30 rounded-2xl p-3 text-xs text-b-fg/70 font-sans">
+        Hi! Ask me any question about the meeting transcript. I will ground my answers in the context.
+      </div>
+      @for (msg of chatMessages(); track $index) {
+        <div
+          class="max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed font-sans"
+          [class.bg-b-primary]="msg.role === 'user'"
+          [class.text-white]="msg.role === 'user'"
+          [class.self-end]="msg.role === 'user'"
+          [class.bg-b-clay/50]="msg.role === 'assistant'"
+          [class.text-b-fg]="msg.role === 'assistant'"
+          [class.self-start]="msg.role === 'assistant'"
+          [class.border]="msg.role === 'assistant'"
+          [class.border-b-border/30]="msg.role === 'assistant'"
+        >
+          {{ msg.content }}
+        </div>
+      }
+      @if (chatLoading()) {
+        <div class="self-start bg-b-clay/35 rounded-2xl px-4 py-3 text-xs text-b-fg/50 animate-pulse">
+          AI is thinking...
+        </div>
+      }
+    </div>
+
+    <!-- Input Form -->
+    <form (submit)="sendQuestion($event)" class="border-t border-b-border p-3 shrink-0 flex gap-2">
+      <input
+        type="text"
+        name="question"
+        [(ngModel)]="chatQuery"
+        placeholder="Type your question..."
+        [disabled]="chatLoading()"
+        class="flex-grow rounded-xl border border-b-border bg-b-clay px-3 py-2 text-xs font-sans focus:outline-none focus:ring-1 focus:ring-b-primary"
+      />
+      <button
+        type="submit"
+        [disabled]="chatLoading() || !chatQuery.trim()"
+        class="px-4 py-2 bg-b-fg text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-50 transition-all shrink-0"
+      >
+        Send
+      </button>
+    </form>
+  </div>
+}

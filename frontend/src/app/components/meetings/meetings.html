@@ -1,0 +1,687 @@
+<div class="min-h-screen bg-b-bg p-6 relative overflow-hidden font-sans">
+  <!-- Decorative background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-35"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-25"
+    style="background: radial-gradient(circle, rgb(var(--t-primary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="max-w-6xl mx-auto z-10 relative">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <div class="flex items-center gap-4">
+        <img src="/short-logo.png" alt="Ricotdin" style="height: 40px; width: auto" />
+        <div>
+          <h1 class="text-3xl font-serif font-bold text-b-fg">Meetings Dashboard</h1>
+          <p class="text-sm text-b-fg/60">Review your recorded meetings and audio processing</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        @if (authService.currentUser()?.role === 'admin') {
+          <a routerLink="/admin/users" class="btn-primary flex items-center justify-center gap-2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            Admin Panel
+          </a>
+        }
+        <a
+          routerLink="/chat"
+          class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg hover:bg-b-clay/20 transition-all flex items-center justify-center gap-1.5 shadow-b-sm"
+        >
+          <svg class="w-4 h-4 text-b-terra shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          <span>AI Chat</span>
+        </a>
+        <a
+          routerLink="/profile"
+          class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg hover:bg-b-clay/20 transition-all flex items-center justify-center gap-1.5 shadow-b-sm"
+        >
+          <svg class="w-4 h-4 text-b-fg/70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span>Profile</span>
+        </a>
+        <button
+          (click)="handleLogout()"
+          class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg hover:bg-b-clay/20 transition-all"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Left Sidebar (User Details, Upload, Folders) -->
+      <div class="flex flex-col gap-6 h-fit">
+        <!-- User Profile Card -->
+        <div class="bg-white rounded-3xl border border-b-border p-6 shadow-b-md">
+          <h3 class="text-xs uppercase font-bold tracking-wider text-b-fg/50 font-sans mb-4">
+            User Details
+          </h3>
+          @if (authService.currentUser(); as user) {
+            <div class="flex items-center gap-3 mb-4">
+              <div
+                class="h-12 w-12 rounded-full bg-b-clay flex items-center justify-center font-bold text-b-fg uppercase border border-b-border"
+              >
+                {{ user.username[0] }}
+              </div>
+              <div>
+                <div class="font-semibold text-b-fg font-serif text-lg">{{ user.username }}</div>
+                <div class="text-xs text-b-fg/60">{{ user.email }}</div>
+              </div>
+            </div>
+            <div
+              class="flex items-center justify-between text-xs border-t border-b-border/40 pt-3 text-b-fg/70"
+            >
+              <span>Role</span>
+              <span class="font-bold uppercase tracking-wider">{{ user.role }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- Upload Meeting Card -->
+        <div class="bg-white rounded-3xl border border-b-border p-6 shadow-b-md flex flex-col gap-4">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xs uppercase font-bold tracking-wider text-b-fg/50 font-sans">
+              New Meeting
+            </h3>
+            <a
+              routerLink="/record"
+              class="px-3 py-1.5 bg-b-terra text-white text-[10px] font-bold rounded-lg hover:opacity-90 transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <span>●</span> Record Live
+            </a>
+          </div>
+          <div class="border-t border-b-border/30 pt-2">
+          
+          @if (uploadState() === 'idle') {
+            <div class="flex flex-col gap-3">
+              <input
+                type="file"
+                #fileInput
+                (change)="onFileSelected($event)"
+                accept="audio/*,video/*"
+                class="hidden"
+              />
+              <button
+                (click)="fileInput.click()"
+                class="px-4 py-3 border border-dashed border-b-border rounded-2xl text-xs font-semibold text-b-fg/60 hover:bg-b-clay/10 transition-all text-center cursor-pointer inline-flex items-center justify-center gap-1.5"
+              >
+                @if (selectedFile()) {
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 flex-none">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                  </svg>
+                  {{ selectedFile()?.name }}
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 flex-none">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Select Audio or Video File
+                }
+              </button>
+
+              @if (selectedFile()) {
+                <button
+                  (click)="triggerUpload()"
+                  class="px-4 py-2.5 bg-b-fg text-white text-xs font-bold rounded-2xl hover:opacity-90 transition-all text-center inline-flex items-center justify-center gap-1.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 19.5V4.5m0 0-6 6m6-6 6 6" />
+                  </svg>
+                  Upload and process
+                </button>
+              }
+            </div>
+          }
+
+          @if (uploadState() === 'uploading') {
+            <div class="flex items-center gap-3 bg-b-clay/35 rounded-2xl p-4 border border-b-border/30">
+              <div class="animate-spin rounded-full h-4 w-4 border-2 border-b-primary border-t-transparent"></div>
+              <span class="text-xs text-b-fg/60 font-sans">Uploading and extracting audio...</span>
+            </div>
+          }
+
+          @if (uploadState() === 'done') {
+            <div class="flex flex-col gap-3">
+              <div class="bg-green-50 border border-green-200 rounded-2xl p-3 text-xs text-green-700 font-sans flex items-start gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 flex-none mt-0.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+                <span>File uploaded! The job is now processing.</span>
+              </div>
+              <div class="flex gap-2">
+                <a
+                  [routerLink]="['/meetings', uploadedMeetingId()]"
+                  class="flex-grow px-3 py-2 bg-b-fg text-white text-xs font-bold rounded-xl hover:opacity-90 text-center transition-all"
+                >
+                  View recording
+                </a>
+                <button
+                  (click)="resetUpload()"
+                  class="px-3 py-2 border border-b-border text-xs font-bold text-b-fg/60 rounded-xl hover:bg-b-clay/20 transition-all"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (uploadState() === 'error') {
+            <div class="flex flex-col gap-3">
+              <div class="bg-red-50 border border-red-200 rounded-2xl p-3 text-xs text-red-700 font-sans">
+                {{ uploadError() }}
+              </div>
+              <button
+                (click)="resetUpload()"
+                class="px-4 py-2 border border-b-border text-xs font-bold text-b-fg/60 rounded-xl hover:bg-b-clay/20 transition-all"
+              >
+                Try again
+              </button>
+            </div>
+          }
+          </div>
+        </div>
+
+        <!-- Folders Management Card -->
+        <div class="bg-white rounded-3xl border border-b-border p-6 shadow-b-md flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs uppercase font-bold tracking-wider text-b-fg/50 font-sans">
+              Folders
+            </h3>
+            <button
+              (click)="showNewFolderInput.update(v => !v)"
+              class="text-xs text-b-terra font-semibold hover:underline"
+            >
+              + New
+            </button>
+          </div>
+
+          <!-- New Folder Input Form -->
+          @if (showNewFolderInput()) {
+            <div class="flex flex-col gap-2 border-t border-b-border/30 pt-3">
+              <input
+                type="text"
+                [(ngModel)]="newFolderName"
+                placeholder="Folder name"
+                [disabled]="newFolderBusy()"
+                class="w-full px-3 py-2 rounded-xl border border-b-border bg-b-clay text-xs focus:outline-none focus:ring-1 focus:ring-b-primary"
+                (keydown.enter)="createFolder()"
+              />
+              <div class="flex gap-2">
+                <button
+                  (click)="createFolder()"
+                  [disabled]="newFolderBusy() || !newFolderName.trim()"
+                  class="px-3 py-1 bg-b-fg text-white text-[10px] font-bold rounded-lg hover:opacity-90 disabled:opacity-60"
+                >
+                  Create
+                </button>
+                <button
+                  (click)="showNewFolderInput.set(false); newFolderName=''"
+                  class="px-3 py-1 border border-b-border text-[10px] text-b-fg/60 rounded-lg hover:bg-b-clay/20"
+                >
+                  Cancel
+                </button>
+              </div>
+              @if (newFolderError()) {
+                <span class="text-[10px] text-red-500 font-sans">{{ newFolderError() }}</span>
+              }
+            </div>
+          }
+
+          <!-- Folder list filters -->
+          <div class="flex flex-col gap-1.5 mt-1">
+            <!-- All Filter -->
+            <button
+              (click)="selectedFolderId.set(null)"
+              class="flex items-center justify-between text-left px-3 py-2 rounded-xl text-xs font-semibold font-sans transition-all"
+              [class.bg-b-clay]="selectedFolderId() === null"
+              [class.text-b-fg]="selectedFolderId() === null"
+              [class.text-b-fg/60]="selectedFolderId() !== null"
+              [class.hover:bg-b-clay/30]="selectedFolderId() !== null"
+            >
+              <span class="inline-flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 flex-none">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                </svg>
+                All Meetings
+              </span>
+            </button>
+
+            <!-- Uncategorized Filter -->
+            <button
+              (click)="selectedFolderId.set('uncategorized')"
+              class="flex items-center justify-between text-left px-3 py-2 rounded-xl text-xs font-semibold font-sans transition-all"
+              [class.bg-b-clay]="selectedFolderId() === 'uncategorized'"
+              [class.text-b-fg]="selectedFolderId() === 'uncategorized'"
+              [class.text-b-fg/60]="selectedFolderId() !== 'uncategorized'"
+              [class.hover:bg-b-clay/30]="selectedFolderId() !== 'uncategorized'"
+            >
+              <span class="inline-flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 flex-none">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                </svg>
+                Uncategorized
+              </span>
+            </button>
+
+            <!-- Custom Folders list -->
+            @for (f of folders(); track f.id; let idx = $index) {
+              <div
+                class="group flex items-center justify-between rounded-xl transition-all"
+                [class.bg-b-clay]="selectedFolderId() === f.id"
+                [class.text-b-fg]="selectedFolderId() === f.id"
+                [class.text-b-fg/60]="selectedFolderId() !== f.id"
+                [class.hover:bg-b-clay/30]="selectedFolderId() !== f.id"
+              >
+                <!-- Clickable filter body -->
+                <button
+                  (click)="selectedFolderId.set(f.id)"
+                  class="flex-grow text-left px-3 py-2 text-xs font-semibold font-sans truncate"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 inline -mt-0.5 mr-1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                  </svg>
+                  {{ f.name }}
+                  @if (f.myRole !== 'owner') {
+                    <span class="text-[9px] uppercase font-bold opacity-60 tracking-wider"> (Shared)</span>
+                  }
+                </button>
+
+                <!-- Actions on hover / reordering / sharing -->
+                <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1 pr-2 transition-opacity">
+                  @if (f.myRole === 'owner') {
+                    <!-- Reordering buttons -->
+                    <button (click)="moveFolderUp(idx)" [disabled]="idx === 0" class="text-[10px] text-b-fg/40 hover:text-b-primary disabled:opacity-30">▲</button>
+                    <button (click)="moveFolderDown(idx)" [disabled]="idx === folders().length - 1" class="text-[10px] text-b-fg/40 hover:text-b-primary disabled:opacity-30">▼</button>
+                    <!-- Share -->
+                    <button (click)="openShareModal(f)" class="text-[10px] text-b-fg/40 hover:text-b-primary" title="Share Folder">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                      </svg>
+                    </button>
+                  }
+                  @if (f.myRole === 'owner') {
+                    <button (click)="startRename(f)" class="text-[10px] text-b-fg/40 hover:text-b-primary" title="Rename">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                      </svg>
+                    </button>
+                    <button (click)="folderConfirmDelete.set(f)" class="text-[10px] text-red-400 hover:text-red-600" title="Delete">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                      </svg>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Inline renaming form -->
+              @if (renamingFolder()?.id === f.id) {
+                <div class="flex flex-col gap-2 px-3 py-2 border border-b-border/30 rounded-xl bg-b-clay/10 mt-1">
+                  <input
+                    type="text"
+                    [(ngModel)]="renameFolderName"
+                    [disabled]="folderBusy() === f.id"
+                    class="w-full px-2 py-1 border border-b-border bg-white text-xs rounded"
+                    (keydown.enter)="saveRename()"
+                  />
+                  <div class="flex gap-2">
+                    <button (click)="saveRename()" class="px-2 py-0.5 bg-b-fg text-white text-[9px] font-bold rounded">Save</button>
+                    <button (click)="renamingFolder.set(null)" class="px-2 py-0.5 border border-b-border text-[9px] rounded bg-white">Cancel</button>
+                  </div>
+                  @if (renameFolderError()) {
+                    <span class="text-[9px] text-red-500">{{ renameFolderError() }}</span>
+                  }
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Meetings List Table -->
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-3xl border border-b-border shadow-b-xl overflow-hidden">
+          <div class="px-6 py-5 border-b border-b-border flex items-center justify-between">
+            <h2 class="font-serif text-xl font-bold text-b-fg">
+              @if (selectedFolderId() === null) {
+                Your Meetings
+              } @else if (selectedFolderId() === 'uncategorized') {
+                Uncategorized Meetings
+              } @else {
+                <!-- Find current folder name -->
+                Meetings in Folder
+              }
+            </h2>
+            <button
+              (click)="loadProjects()"
+              [disabled]="loading()"
+              class="text-xs text-b-terra font-semibold hover:underline"
+            >
+              Refresh
+            </button>
+          </div>
+
+          <!-- Active Filter Header Indicator -->
+          @if (selectedFolderId() !== null) {
+            <div class="bg-b-clay/20 px-6 py-3 border-b border-b-border/40 flex items-center justify-between text-xs text-b-fg/70">
+              <span>
+                Active filter: 
+                <strong>
+                  {{ selectedFolderId() === 'uncategorized' ? 'Uncategorized' : (folders().find(f => f.id === selectedFolderId())?.name || 'Folder') }}
+                </strong>
+              </span>
+              <button (click)="selectedFolderId.set(null)" class="text-b-terra hover:underline font-semibold">
+                Clear filter
+              </button>
+            </div>
+          }
+
+          @if (loading()) {
+            <div class="p-12 text-center text-b-fg/50 flex flex-col items-center gap-3">
+              <div
+                class="animate-spin rounded-full h-8 w-8 border-2 border-b-terra border-t-transparent"
+              ></div>
+              <span>Loading meetings...</span>
+            </div>
+          } @else if (error()) {
+            <div class="p-12 text-center">
+              <p
+                class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-2xl px-6 py-4 inline-block"
+              >
+                {{ error() }}
+              </p>
+            </div>
+          } @else if (filteredProjects().length === 0) {
+            <div class="p-12 text-center text-b-fg/50 flex flex-col items-center gap-3">
+              <svg
+                class="text-b-fg/30"
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p class="font-medium text-lg">No meetings found</p>
+              <p class="text-sm">You haven't recorded any meetings in this view yet.</p>
+            </div>
+          } @else {
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr
+                    class="bg-b-clay/35 border-b border-b-border text-b-fg/70 uppercase tracking-widest text-[10px] font-bold"
+                  >
+                    <th class="py-4 px-6">Title</th>
+                    <th class="py-4 px-6">Duration</th>
+                    <th class="py-4 px-6">Status</th>
+                    <th class="py-4 px-6">Folder</th>
+                    <th class="py-4 px-6">Created At</th>
+                    <th class="py-4 px-6 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-b-border/60">
+                  @for (p of filteredProjects(); track p.id) {
+                    <tr class="hover:bg-b-clay/10 transition-colors">
+                      <td class="py-4 px-6 font-semibold text-b-fg font-serif text-base">
+                        <a [routerLink]="['/meetings', p.id]" class="hover:text-b-primary hover:underline">
+                          {{ p.title || 'Untitled Meeting' }}
+                        </a>
+                      </td>
+                      <td class="py-4 px-6 text-sm text-b-fg/70 font-mono">
+                        {{ formatDuration(p.duration_seconds) }}
+                      </td>
+                      <td class="py-4 px-6">
+                        <span
+                          class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border"
+                          [class.bg-green-50]="p.status === 'done'"
+                          [class.text-green-700]="p.status === 'done'"
+                          [class.border-green-200]="p.status === 'done'"
+                          [class.bg-blue-50]="p.status === 'processing'"
+                          [class.text-blue-700]="p.status === 'processing'"
+                          [class.border-blue-200]="p.status === 'processing'"
+                          [class.bg-yellow-50]="p.status === 'pending'"
+                          [class.text-yellow-700]="p.status === 'pending'"
+                          [class.border-yellow-200]="p.status === 'pending'"
+                          [class.bg-red-50]="p.status === 'failed'"
+                          [class.text-red-700]="p.status === 'failed'"
+                          [class.border-red-200]="p.status === 'failed'"
+                        >
+                          {{ p.status || 'pending' }}
+                        </span>
+                      </td>
+                      <td class="py-4 px-6">
+                        <select
+                          [ngModel]="p.folder_id"
+                          (change)="moveMeeting(p.id, $any($event.target).value)"
+                          class="custom-select text-xs border border-b-border/80 rounded-xl pl-3 pr-8 py-1.5 bg-white text-b-fg font-semibold focus:outline-none cursor-pointer max-w-[150px] shadow-b-sm hover:bg-b-clay/20 transition-all"
+                        >
+                          <option [value]="null">Uncategorized</option>
+                          @for (f of folders(); track f.id) {
+                            @if (f.myRole === 'owner' || f.myRole === 'editor') {
+                              <option [value]="f.id">{{ f.name }}</option>
+                            }
+                          }
+                        </select>
+                      </td>
+                      <td class="py-4 px-6 text-sm text-b-fg/70">
+                        {{ p.created_at | date: 'mediumDate' }}
+                      </td>
+                      <td class="py-4 px-6 text-right">
+                        <button
+                          (click)="deleteMeeting(p.id, $event)"
+                          class="px-2.5 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-bold hover:bg-red-100 transition-all cursor-pointer inline-flex items-center gap-1"
+                          title="Delete meeting"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                          <span class="hidden sm:inline">Delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <div
+              class="bg-b-clay/20 px-6 py-4 border-t border-b-border flex items-center justify-between"
+            >
+              <span class="text-xs text-b-fg/60"> Showing page {{ currentPage() }} </span>
+              <div class="flex gap-2">
+                <button
+                  (click)="prevPage()"
+                  [disabled]="skip() === 0"
+                  class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg transition-all hover:bg-b-clay/20 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  (click)="nextPage()"
+                  [disabled]="projects().length < limit()"
+                  class="px-4 py-2 rounded-2xl bg-white border border-b-border text-xs font-bold text-b-fg transition-all hover:bg-b-clay/20 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Share Folder Modal Dialog ── -->
+@if (showShareModal() && sharingFolder(); as sf) {
+  <div
+    class="fixed inset-0 bg-b-fg/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    (click)="showShareModal.set(false)"
+  >
+    <div
+      class="bg-white rounded-3xl border border-b-border shadow-b-xl p-8 max-w-md w-full max-h-[80vh] flex flex-col"
+      (click)="$event.stopPropagation()"
+    >
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="font-serif text-xl font-bold text-b-fg">Share &ldquo;{{ sf.name }}&rdquo;</h3>
+        <button (click)="showShareModal.set(false)" class="text-b-fg/40 hover:text-b-fg cursor-pointer bg-transparent border-0 leading-none">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Error Display -->
+      @if (shareError()) {
+        <p class="text-xs text-red-500 mb-3">{{ shareError() }}</p>
+      }
+
+      <!-- Members List -->
+      <div class="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0 mb-4 pr-1">
+        <!-- Self Owner Display -->
+        <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-b-clay/50 border border-b-border/30">
+          <span class="flex-grow text-sm font-semibold text-b-fg truncate">You</span>
+          <span class="text-[10px] text-b-fg/40 font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-b-border bg-white">Owner</span>
+        </div>
+
+        <!-- Members -->
+        @if (shareBusy()) {
+          <p class="text-xs text-b-fg/40 font-sans py-2 text-center animate-pulse">Loading members…</p>
+        } @else {
+          @for (m of shareMembers(); track m.userId) {
+            <div class="flex items-center gap-2 px-3 py-2 rounded-xl border border-b-border">
+              <span class="flex-grow text-sm text-b-fg truncate">@{{ m.username }}</span>
+              <select
+                [value]="m.role"
+                (change)="changeShareRole(m, $any($event.target).value)"
+                class="text-xs border border-b-border rounded-lg px-2 py-1 bg-white text-b-fg focus:outline-none cursor-pointer"
+              >
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+              </select>
+              <button
+                (click)="removeShareMember(m)"
+                class="text-xs text-red-400 hover:text-red-600 cursor-pointer bg-transparent border-0 px-1"
+              >
+                Remove
+              </button>
+            </div>
+          }
+          @if (shareMembers().length === 0) {
+            <p class="text-xs text-b-fg/40 font-sans py-2 text-center">No members yet — add someone below.</p>
+          }
+        }
+      </div>
+
+      <!-- Add Member form -->
+      <div class="border-t border-b-border pt-4">
+        <p class="text-xs font-semibold text-b-fg/60 font-sans uppercase tracking-wide mb-2">Add member</p>
+        <div class="flex gap-2 mb-2">
+          <input
+            type="text"
+            [(ngModel)]="shareIdentifier"
+            placeholder="Email or @username"
+            [disabled]="addShareBusy()"
+            class="flex-grow px-3 py-2 rounded-xl border border-b-border bg-b-clay text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary/40 disabled:opacity-50"
+            (keydown.enter)="addShareMember()"
+          />
+          <select
+            [(ngModel)]="shareRole"
+            class="text-xs border border-b-border rounded-xl px-2 bg-white text-b-fg focus:outline-none cursor-pointer"
+          >
+            <option value="viewer">Viewer</option>
+            <option value="editor">Editor</option>
+          </select>
+          <button
+            (click)="addShareMember()"
+            [disabled]="addShareBusy() || !shareIdentifier.trim()"
+            class="px-4 py-2 bg-b-fg text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Delete Folder Dialog Modal ── -->
+@if (folderConfirmDelete(); as f) {
+  <div
+    class="fixed inset-0 bg-b-fg/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    (click)="folderConfirmDelete.set(null)"
+  >
+    <div
+      class="bg-white rounded-3xl border border-b-border shadow-b-xl p-8 max-w-md w-full"
+      (click)="$event.stopPropagation()"
+    >
+      <h3 class="font-serif text-xl font-bold text-b-fg mb-3">Delete &ldquo;{{ f.name }}&rdquo;?</h3>
+      
+      @if (f.memberCount > 0) {
+        <p class="text-sm text-b-fg/70 font-sans mb-4">
+          Warning: This folder is shared and has member count of {{ f.memberCount }}. Deleting it will revoke their access.
+        </p>
+      }
+
+      <p class="text-sm text-b-fg/60 font-sans mb-6">
+        What should happen to the meetings inside this folder?
+      </p>
+
+      <div class="flex flex-col gap-3">
+        <button
+          (click)="deleteFolder(false)"
+          [disabled]="folderBusy() === f.id"
+          class="text-left px-4 py-3 border border-b-border rounded-2xl text-xs font-bold text-b-fg hover:bg-b-clay/20 transition-all inline-flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 flex-none">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+          </svg>
+          Keep meetings — move them to Uncategorized
+        </button>
+        <button
+          (click)="deleteFolder(true)"
+          [disabled]="folderBusy() === f.id"
+          class="text-left px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-700 hover:bg-red-100 transition-all inline-flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 flex-none">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+          </svg>
+          Delete folder + all meetings inside
+        </button>
+        <button
+          (click)="folderConfirmDelete.set(null)"
+          class="px-4 py-2 border border-b-border rounded-2xl text-xs font-bold text-b-fg/60 hover:bg-b-clay/20 text-center transition-all"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,252 @@
+<div class="min-h-screen bg-b-bg p-6 relative overflow-hidden font-sans">
+  <!-- Decorative background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-35"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-25"
+    style="background: radial-gradient(circle, rgb(var(--t-primary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="max-w-6xl mx-auto z-10 relative">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <div class="flex items-center gap-4">
+        <img src="/short-logo.png" alt="Ricotdin" style="height: 40px; width: auto" />
+        <div>
+          <h1 class="text-3xl font-serif font-bold text-b-fg">API Keys Vault</h1>
+          <p class="text-sm text-b-fg/60">Configure and monitor healthy API keys pool for models and transcribers</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <a routerLink="/meetings" class="btn-primary flex items-center justify-center gap-2">
+          ← Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="flex gap-2 mb-6 border-b border-b-border pb-2">
+      <a
+        routerLink="/admin/users"
+        class="px-4 py-2 text-sm font-semibold text-b-fg/50 hover:text-b-fg transition-all inline-flex items-center gap-1.5"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+        Users
+      </a>
+      <a
+        routerLink="/admin/pipeline"
+        class="px-4 py-2 text-sm font-semibold text-b-fg/50 hover:text-b-fg transition-all inline-flex items-center gap-1.5"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+        Pipeline Monitor
+      </a>
+      <a
+        routerLink="/admin/keys"
+        class="px-4 py-2 text-sm font-bold text-b-terra border-b-2 border-b-terra transition-all inline-flex items-center gap-1.5"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>
+        Keys Vault
+      </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Keys List (Left 2 columns) -->
+      <div class="lg:col-span-2 flex flex-col gap-6">
+        <div class="bg-white rounded-3xl border border-b-border shadow-b-md overflow-hidden">
+          <div class="p-6 border-b border-b-border flex justify-between items-center bg-b-clay/10">
+            <h2 class="font-serif text-lg font-bold text-b-fg">Active Key Pool</h2>
+            <button
+              (click)="triggerHealthcheck()"
+              [disabled]="healthBusy() || keys().length === 0"
+              class="px-4 py-2 bg-b-fg text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer inline-flex items-center gap-1.5"
+            >
+              @if (healthBusy()) {
+                <div class="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></div>
+                <span>Probing...</span>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                </svg>
+                <span>Run Healthcheck</span>
+              }
+            </button>
+          </div>
+
+          @if (loading()) {
+            <div class="p-12 text-center text-b-fg/50 flex flex-col items-center gap-3">
+              <div class="animate-spin rounded-full h-8 w-8 border-2 border-b-terra border-t-transparent"></div>
+              <span>Loading keys vault...</span>
+            </div>
+          } @else if (error()) {
+            <div class="p-6 text-center text-red-600 font-medium">
+              {{ error() }}
+            </div>
+          } @else if (keys().length === 0) {
+            <div class="p-12 text-center text-b-fg/40 flex flex-col items-center gap-3">
+              <h3 class="font-serif text-lg font-bold text-b-fg">No keys configured</h3>
+              <p class="text-xs max-w-xs mx-auto">Vault is currently empty. Configure Gemini or Speechmatics keys on the right.</p>
+            </div>
+          } @else {
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-b-clay/20 border-b border-b-border text-b-fg/70 uppercase tracking-widest text-[10px] font-bold">
+                    <th class="py-4 px-6">Provider</th>
+                    <th class="py-4 px-6">Label</th>
+                    <th class="py-4 px-6">Status</th>
+                    <th class="py-4 px-6">Health Check</th>
+                    <th class="py-4 px-6 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-b-border/60">
+                  @for (k of keys(); track k.id) {
+                    <tr class="hover:bg-b-clay/10 transition-colors">
+                      <td class="py-4 px-6">
+                        <span class="font-bold text-b-fg block font-sans text-sm">{{ getProviderLabel(k.config_key) }}</span>
+                        <span class="text-[10px] text-b-fg/40 block mt-0.5 font-mono">****-{{ k.last4 }}</span>
+                      </td>
+                      <td class="py-4 px-6 text-xs text-b-fg/80 font-sans max-w-[130px] truncate" [title]="k.label">
+                        {{ k.label }}
+                      </td>
+                      <td class="py-4 px-6">
+                        <span
+                          class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                          [class.bg-green-50]="k.status === 'active'"
+                          [class.text-green-700]="k.status === 'active'"
+                          [class.border-green-200]="k.status === 'active'"
+                          [class.bg-red-50]="k.status === 'disabled'"
+                          [class.text-red-700]="k.status === 'disabled'"
+                          [class.border-red-200]="k.status === 'disabled'"
+                        >
+                          {{ k.status }}
+                        </span>
+                        @if (k.disabled_reason) {
+                          <span class="block text-[10px] text-b-fg/50 italic mt-0.5 max-w-[120px] truncate" [title]="k.disabled_reason">
+                            "{{ k.disabled_reason }}"
+                          </span>
+                        }
+                      </td>
+                      <td class="py-4 px-6">
+                        @if (healthMap[k.id]; as probe) {
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                            [class.bg-green-50]="probe.status === 'healthy'"
+                            [class.text-green-700]="probe.status === 'healthy'"
+                            [class.border-green-200]="probe.status === 'healthy'"
+                            [class.bg-red-50]="probe.status === 'unhealthy'"
+                            [class.text-red-700]="probe.status === 'unhealthy'"
+                            [class.border-red-200]="probe.status === 'unhealthy'"
+                            [class.bg-gray-50]="probe.status === 'unknown'"
+                            [class.text-gray-600]="probe.status === 'unknown'"
+                            [class.border-gray-200]="probe.status === 'unknown'"
+                          >
+                            {{ probe.status }}
+                          </span>
+                          @if (probe.detail) {
+                            <span class="block text-[10px] text-b-fg/50 mt-1 max-w-[140px] truncate" [title]="probe.detail">
+                              {{ probe.detail }}
+                            </span>
+                          }
+                        } @else {
+                          <span class="text-xs text-b-fg/40">-</span>
+                        }
+                      </td>
+                      <td class="py-4 px-6 text-right flex items-center justify-end gap-1.5">
+                        <button
+                          (click)="toggleKey(k)"
+                          class="px-2.5 py-1.5 border border-b-border rounded-lg text-[10px] font-bold text-b-fg/60 hover:bg-b-clay/20 transition-all cursor-pointer"
+                        >
+                          {{ k.status === 'active' ? 'Disable' : 'Enable' }}
+                        </button>
+                        <button
+                          (click)="deleteKey(k.id)"
+                          class="px-2.5 py-1.5 border border-red-200 text-red-500 rounded-lg text-[10px] font-bold hover:bg-red-50 transition-all cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+
+        <!-- Health Report Summary Alert Box -->
+        @if (healthReport(); as rep) {
+          <div class="p-5 bg-b-clay/10 border border-b-border rounded-3xl flex flex-col gap-2">
+            <h3 class="font-bold text-sm text-b-fg">Latest Health Verdict Summary</h3>
+            <p class="text-xs text-b-fg/70">
+              Probed all keys at {{ rep.ranAt | date:'medium' }}. Verdict:
+              <span class="font-bold text-green-700 font-mono">{{ rep.summary.healthy }} healthy</span>,
+              <span class="font-bold text-red-600 font-mono">{{ rep.summary.unhealthy }} unhealthy</span>, and
+              <span class="font-bold text-b-fg/60 font-mono">{{ rep.summary.unknown }} unknown</span>.
+            </p>
+          </div>
+        }
+      </div>
+
+      <!-- Add Key Vault Sidebar Form (Right 1 column) -->
+      <div class="flex flex-col gap-6">
+        <div class="bg-white rounded-3xl border border-b-border p-6 shadow-b-md flex flex-col gap-4">
+          <h3 class="font-serif text-lg font-bold text-b-fg">Configure New Key</h3>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Provider Type</label>
+            <select
+              [(ngModel)]="configKey"
+              [disabled]="addBusy()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-white text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50 cursor-pointer"
+            >
+              <option value="gemini_api_key">Google Gemini API Key</option>
+              <option value="speechmatics_api_key">Speechmatics ASR API Key</option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Label</label>
+            <input
+              type="text"
+              [(ngModel)]="label"
+              placeholder="e.g. Gemini production primary"
+              [disabled]="addBusy()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-b-clay text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Plaintext Key Secret</label>
+            <input
+              type="password"
+              [(ngModel)]="key"
+              placeholder="AIzaSy..."
+              [disabled]="addBusy()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-b-clay text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50"
+            />
+          </div>
+
+          <div class="border-t border-b-border/30 pt-4 flex flex-col gap-2">
+            <button
+              (click)="addKey()"
+              [disabled]="addBusy() || !label.trim() || !key.trim()"
+              class="px-6 py-3 bg-b-fg text-white text-xs font-bold rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all font-sans cursor-pointer self-end"
+            >
+              Add to pool
+            </button>
+
+            @if (addError()) {
+              <div class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs text-center font-medium font-sans">
+                {{ addError() }}
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

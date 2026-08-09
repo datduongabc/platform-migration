@@ -1,0 +1,298 @@
+<div class="min-h-screen bg-b-bg p-6 relative overflow-hidden font-sans">
+  <!-- Background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-35"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-25"
+    style="background: radial-gradient(circle, rgb(var(--t-primary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="max-w-2xl mx-auto z-10 relative">
+    <!-- Navigation Back Link -->
+    <div class="mb-6">
+      <a
+        routerLink="/meetings"
+        class="inline-block text-sm font-semibold text-b-terra hover:underline"
+      >
+        ← Return to Meetings
+      </a>
+    </div>
+
+    @if (loading()) {
+      <div class="bg-white border border-b-border rounded-3xl p-12 text-center text-b-fg/50 flex flex-col items-center gap-3">
+        <div class="animate-spin rounded-full h-8 w-8 border-2 border-b-terra border-t-transparent"></div>
+        <span>Loading your profile details...</span>
+      </div>
+    } @else if (error()) {
+      <div class="bg-white border border-b-border rounded-3xl p-8 text-center">
+        <p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-2xl px-6 py-4 inline-block">
+          {{ error() }}
+        </p>
+      </div>
+    } @else if (profile(); as p) {
+      <div class="flex flex-col gap-8">
+        <!-- Profile Header Card (Avatar + Core details) -->
+        <div class="bg-white border border-b-border rounded-3xl p-6 shadow-b-md flex flex-col sm:flex-row items-center gap-6">
+          <div class="relative group">
+            @if (p.avatar_url) {
+              <img
+                [src]="getAvatarUrl(p.avatar_url)"
+                alt="Avatar"
+                class="w-24 h-24 rounded-full object-cover border border-b-border bg-b-clay shadow-b-sm"
+              />
+            } @else {
+              <div class="w-24 h-24 rounded-full bg-b-clay border border-b-border flex items-center justify-center font-serif text-3xl font-bold text-b-fg">
+                {{ getInitials(p.display_name, p.username) }}
+              </div>
+            }
+            @if (avatarUploading()) {
+              <div class="absolute inset-0 bg-white/70 rounded-full flex items-center justify-center">
+                <div class="animate-spin rounded-full h-5 w-5 border-2 border-b-terra border-t-transparent"></div>
+              </div>
+            }
+          </div>
+
+          <div class="flex-grow text-center sm:text-left">
+            <h2 class="text-2xl font-serif font-bold text-b-fg">{{ p.display_name || p.username }}</h2>
+            <p class="text-sm text-b-fg/60 font-sans mt-0.5">@{{ p.username }} · {{ p.email }}</p>
+            <p class="text-xs text-b-fg/45 font-sans mt-2">
+              Member since {{ formatMemberSince(p.created_at) }} · Role: <span class="font-bold uppercase tracking-wider">{{ p.role }}</span>
+            </p>
+
+            <div class="flex items-center justify-center sm:justify-start gap-2 mt-4">
+              <input
+                type="file"
+                #avatarInput
+                (change)="onAvatarSelected($event)"
+                accept="image/jpeg,image/png,image/webp"
+                class="hidden"
+              />
+              <button
+                (click)="avatarInput.click()"
+                [disabled]="avatarUploading()"
+                class="px-4 py-2 border border-b-border rounded-xl text-xs font-bold text-b-fg/60 hover:bg-b-clay/20 transition-all cursor-pointer"
+              >
+                Change picture
+              </button>
+              @if (p.avatar_key) {
+                <button
+                  (click)="removeAvatar()"
+                  [disabled]="avatarUploading()"
+                  class="px-4 py-2 border border-red-200 text-red-500 rounded-xl text-xs font-bold hover:bg-red-50 transition-all cursor-pointer"
+                >
+                  Remove
+                </button>
+              }
+            </div>
+            @if (avatarError()) {
+              <span class="text-[10px] text-red-500 block mt-2 font-sans">{{ avatarError() }}</span>
+            }
+          </div>
+        </div>
+
+        <!-- Quotas Card -->
+        <div class="bg-white border border-b-border rounded-3xl p-6 shadow-b-md">
+          <h3 class="font-serif text-lg font-bold text-b-fg mb-4">Quota Balances</h3>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <!-- Audio Seconds Balance -->
+            <div class="flex flex-col gap-2">
+              <div class="flex justify-between text-xs text-b-fg/70 font-semibold font-sans">
+                <span>Audio Seconds Remaining</span>
+                <span class="font-bold font-mono">{{ formatHours(p.audio_seconds_remaining) }} hrs</span>
+              </div>
+              <div class="w-full h-3 bg-b-clay rounded-full overflow-hidden border border-b-border/30">
+                <!-- Cap width at 100% for progress visual -->
+                <div
+                  class="h-full bg-b-terra transition-all"
+                  [style.width.%]="p.audio_seconds_remaining > 0 ? 100 : 0"
+                ></div>
+              </div>
+              <span class="text-[10px] text-b-fg/45 font-sans leading-relaxed">
+                Quota used during Speech-to-Text transcription step.
+              </span>
+            </div>
+
+            <!-- Agent Queries Balance -->
+            <div class="flex flex-col gap-2">
+              <div class="flex justify-between text-xs text-b-fg/70 font-semibold font-sans">
+                <span>Agent Queries Remaining</span>
+                <span class="font-bold font-mono">{{ p.agent_queries_remaining }}</span>
+              </div>
+              <div class="w-full h-3 bg-b-clay rounded-full overflow-hidden border border-b-border/30">
+                <div
+                  class="h-full bg-b-primary transition-all"
+                  [style.width.%]="p.agent_queries_remaining > 0 ? 100 : 0"
+                ></div>
+              </div>
+              <span class="text-[10px] text-b-fg/45 font-sans leading-relaxed">
+                Quota used when asking AI questions about transcript contexts.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Settings Card -->
+        <div class="bg-white border border-b-border rounded-3xl p-6 shadow-b-md flex flex-col gap-4">
+          <h3 class="font-serif text-lg font-bold text-b-fg">Profile Settings</h3>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Display Name</label>
+            <input
+              type="text"
+              [(ngModel)]="displayName"
+              placeholder="e.g. John Doe"
+              [disabled]="updating()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-b-clay text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Username</label>
+            <input
+              type="text"
+              [(ngModel)]="username"
+              placeholder="username"
+              [disabled]="updating()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-b-clay text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Theme Preference</label>
+            <select
+              [(ngModel)]="themePreference"
+              [disabled]="updating()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-white text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50 cursor-pointer"
+            >
+              <option value="default">Default Theme</option>
+              <option value="luxury">Luxury Theme</option>
+              <option value="playful">Playful Theme</option>
+            </select>
+          </div>
+
+          <div class="border-t border-b-border/30 pt-4 flex flex-col gap-2">
+            <button
+              (click)="saveProfile()"
+              [disabled]="updating() || !username.trim()"
+              class="px-6 py-3 bg-b-fg text-white text-xs font-bold rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all font-sans cursor-pointer self-end"
+            >
+              Save changes
+            </button>
+
+            @if (updateError()) {
+              <div class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs text-center font-medium font-sans">
+                {{ updateError() }}
+              </div>
+            }
+            @if (updateSuccess()) {
+              <div class="p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs text-center font-medium font-sans">
+                Profile updated successfully.
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- AI Model Preference Card -->
+        <div class="bg-white border border-b-border rounded-3xl p-6 shadow-b-md flex flex-col gap-4">
+          <h3 class="font-serif text-lg font-bold text-b-fg">AI Model</h3>
+          <p class="text-xs text-b-fg/60 -mt-2">
+            Choose which Gemini model analyzes your meetings. Leave on "System default" to always use whatever the admin has set.
+          </p>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Preferred Model</label>
+            <select
+              [(ngModel)]="selectedModelKey"
+              [disabled]="modelPrefBusy()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-white text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50 cursor-pointer"
+            >
+              <option value="">System default</option>
+              @for (m of allowedModels(); track m.provider + ':' + m.model) {
+                <option [value]="m.provider + ':' + m.model">{{ m.provider }} / {{ m.model }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="border-t border-b-border/30 pt-4 flex flex-col gap-2">
+            <button
+              (click)="saveModelPreference()"
+              [disabled]="modelPrefBusy()"
+              class="px-6 py-3 bg-b-fg text-white text-xs font-bold rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all font-sans cursor-pointer self-end"
+            >
+              Save model preference
+            </button>
+            @if (modelPrefError()) {
+              <div class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs text-center font-medium font-sans">
+                {{ modelPrefError() }}
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Change Password Card -->
+        <div class="bg-white border border-b-border rounded-3xl p-6 shadow-b-md flex flex-col gap-4">
+          <h3 class="font-serif text-lg font-bold text-b-fg">Change Password</h3>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Current Password</label>
+            <input
+              type="password"
+              [(ngModel)]="currentPassword"
+              placeholder="••••••••"
+              [disabled]="passwordBusy()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-b-clay text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">New Password</label>
+            <input
+              type="password"
+              [(ngModel)]="newPassword"
+              placeholder="•••••••• (min 8 chars)"
+              [disabled]="passwordBusy()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-b-clay text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-b-fg/60 uppercase tracking-wide font-sans mb-1">Confirm New Password</label>
+            <input
+              type="password"
+              [(ngModel)]="confirmPassword"
+              placeholder="••••••••"
+              [disabled]="passwordBusy()"
+              class="px-4 py-3 rounded-2xl border border-b-border bg-b-clay text-sm font-sans text-b-fg focus:outline-none focus:ring-1 focus:ring-b-primary disabled:opacity-50"
+            />
+          </div>
+
+          <div class="border-t border-b-border/30 pt-4 flex flex-col gap-2">
+            <button
+              (click)="changePassword()"
+              [disabled]="passwordBusy() || !currentPassword || !newPassword || !confirmPassword"
+              class="px-6 py-3 bg-b-fg text-white text-xs font-bold rounded-2xl hover:opacity-90 disabled:opacity-50 transition-all font-sans cursor-pointer self-end"
+            >
+              Update password
+            </button>
+
+            @if (passwordError()) {
+              <div class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs text-center font-medium font-sans">
+                {{ passwordError() }}
+              </div>
+            }
+            @if (passwordSuccess()) {
+              <div class="p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs text-center font-medium font-sans">
+                Password updated successfully.
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

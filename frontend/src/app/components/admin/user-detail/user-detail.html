@@ -1,0 +1,188 @@
+<div class="min-h-screen bg-b-bg p-6 relative overflow-hidden font-sans">
+  <!-- Decorative background blobs -->
+  <div
+    class="pointer-events-none absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-35"
+    style="background: radial-gradient(circle, rgb(var(--t-secondary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-25"
+    style="background: radial-gradient(circle, rgb(var(--t-primary-rgb)) 0%, transparent 70%)"
+    aria-hidden="true"
+  ></div>
+
+  <div class="max-w-2xl mx-auto z-10 relative">
+    <!-- Header / Back button -->
+    <div class="mb-6">
+      <a
+        routerLink="/admin/users"
+        class="inline-flex items-center gap-2 text-sm text-b-terra font-semibold hover:underline"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <polyline points="12 19 5 12 12 5" />
+        </svg>
+        Back to User List
+      </a>
+    </div>
+
+    <!-- Detail Card -->
+    <div class="bg-white rounded-3xl border border-b-border shadow-b-xl p-8">
+      <div class="flex items-center gap-4 mb-6 border-b border-b-border pb-6">
+        <div
+          class="h-16 w-16 rounded-full bg-b-clay flex items-center justify-center font-bold text-b-fg uppercase border border-b-border text-2xl"
+        >
+          {{ (user()?.profile?.username || 'U')[0] }}
+        </div>
+        <div>
+          <h1 class="text-2xl font-serif font-bold text-b-fg">
+            {{ user()?.profile?.display_name || user()?.profile?.username || 'User Details' }}
+            @if (isSelf()) {
+              <span class="text-xs font-sans font-bold bg-b-terra/15 text-b-terra px-2 py-0.5 rounded-full align-middle ml-2">You</span>
+            }
+          </h1>
+          <p class="text-xs text-b-fg/50 font-sans uppercase tracking-widest font-bold mt-0.5">
+            Role: {{ user()?.profile?.role || 'user' }}
+            @if (user()?.disabled_at) {
+              <span class="text-red-600">· Disabled</span>
+            }
+          </p>
+        </div>
+      </div>
+
+      @if (actionError()) {
+        <p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-3 mb-4">
+          {{ actionError() }}
+        </p>
+      }
+      @if (tempPassword()) {
+        <p class="text-sm text-green-700 bg-green-50 border border-green-100 rounded-2xl px-4 py-3 mb-4 font-mono break-all">
+          New temporary password (copy now, shown only once): {{ tempPassword() }}
+        </p>
+      }
+
+      @if (user(); as u) {
+        <div class="flex flex-wrap gap-2 mb-6">
+          <button
+            type="button"
+            [disabled]="actionBusy() || isSelf()"
+            (click)="toggleRole()"
+            class="px-4 py-2 rounded-xl text-sm font-semibold border border-b-border bg-white hover:bg-b-clay/30 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {{ u.profile?.role === 'admin' ? 'Demote to User' : 'Promote to Admin' }}
+          </button>
+          <button
+            type="button"
+            [disabled]="actionBusy() || isSelf()"
+            (click)="toggleStatus()"
+            class="px-4 py-2 rounded-xl text-sm font-semibold border border-b-border bg-white hover:bg-b-clay/30 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {{ u.disabled_at ? 'Enable Account' : 'Disable Account' }}
+          </button>
+          <button
+            type="button"
+            [disabled]="actionBusy()"
+            (click)="resetPassword()"
+            class="px-4 py-2 rounded-xl text-sm font-semibold border border-b-border bg-white hover:bg-b-clay/30 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Reset Password
+          </button>
+          <button
+            type="button"
+            [disabled]="actionBusy() || isSelf()"
+            (click)="deleteUser()"
+            class="px-4 py-2 rounded-xl text-sm font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Delete User
+          </button>
+        </div>
+      }
+
+      @if (loading()) {
+        <div class="p-12 text-center text-b-fg/50 flex flex-col items-center gap-3">
+          <div
+            class="animate-spin rounded-full h-8 w-8 border-2 border-b-terra border-t-transparent"
+          ></div>
+          <span>Loading details...</span>
+        </div>
+      } @else if (error()) {
+        <div class="p-6 text-center">
+          <p
+            class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-2xl px-6 py-4 inline-block"
+          >
+            {{ error() }}
+          </p>
+        </div>
+      } @else if (user(); as u) {
+        <div class="flex flex-col gap-5">
+          <!-- User account details -->
+          <div>
+            <h3 class="text-[10px] font-bold uppercase tracking-widest text-b-fg/50 font-sans mb-2">
+              Account details
+            </h3>
+            <div
+              class="bg-b-clay/20 border border-b-border/60 rounded-2xl p-4 flex flex-col gap-3 font-sans"
+            >
+              <div class="flex justify-between text-sm">
+                <span class="text-b-fg/60">User ID</span>
+                <span class="font-mono text-b-fg font-medium text-xs">{{ u.id }}</span>
+              </div>
+              <div class="flex justify-between text-sm border-t border-b-border/40 pt-3">
+                <span class="text-b-fg/60">Email</span>
+                <span class="text-b-fg font-medium">{{ u.email }}</span>
+              </div>
+              <div class="flex justify-between text-sm border-t border-b-border/40 pt-3">
+                <span class="text-b-fg/60">Joined Date</span>
+                <span class="text-b-fg font-medium">{{ u.created_at | date: 'medium' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile Details -->
+          @if (u.profile; as p) {
+            <div>
+              <h3
+                class="text-[10px] font-bold uppercase tracking-widest text-b-fg/50 font-sans mb-2"
+              >
+                Profile details
+              </h3>
+              <div
+                class="bg-b-clay/20 border border-b-border/60 rounded-2xl p-4 flex flex-col gap-3 font-sans"
+              >
+                <div class="flex justify-between text-sm">
+                  <span class="text-b-fg/60">Username</span>
+                  <span class="text-b-fg font-medium">{{ p.username }}</span>
+                </div>
+                <div class="flex justify-between text-sm border-t border-b-border/40 pt-3">
+                  <span class="text-b-fg/60">Display Name</span>
+                  <span class="text-b-fg font-medium">{{ p.display_name || 'N/A' }}</span>
+                </div>
+                <div class="flex justify-between text-sm border-t border-b-border/40 pt-3">
+                  <span class="text-b-fg/60">Avatar Key</span>
+                  <span class="text-b-fg font-medium font-mono text-xs">{{
+                    p.avatar_key || 'Default'
+                  }}</span>
+                </div>
+                <div class="flex justify-between text-sm border-t border-b-border/40 pt-3">
+                  <span class="text-b-fg/60">Theme Preference</span>
+                  <span class="text-b-fg font-medium uppercase tracking-wider text-xs">{{
+                    p.theme_preference || 'Default'
+                  }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>
